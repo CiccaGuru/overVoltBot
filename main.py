@@ -145,8 +145,8 @@ TOKEN = "235898396:AAHCcT94w-aCZS2THya8ho2SIc2xLDvVkQ0" #MARCO
 bot = telepot.aio.DelegatorBot(TOKEN, [
     pave_event_space()(
         per_inline_from_id(), create_open, OverVoltBot, timeout=1),
-     pave_event_space()(
-        per_chat_id(), create_open, OverVoltBot, timeout=1),
+     #pave_event_space()(
+      #  per_chat_id(), create_open, OverVoltBot, timeout=1),
 ])
 loop = asyncio.get_event_loop()
 
