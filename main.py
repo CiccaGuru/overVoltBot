@@ -83,8 +83,8 @@ class InlineHandler(InlineUserHandler, AnswererMixin):
         p(str(self.id) + ':' + 'Chosen Inline Result:' + " "+ str(result_id) + " "+ str(from_id) + " "+ str(query_string))
 
 
-#TOKEN = "420659811:AAFF2rKdrUXxXuHQW0KPZt8SUxwRf-CRBE8"   ##PRODUCTION
-TOKEN = "371830775:AAEZld4C0qyuvxStk10ojImvBoKo5CNDsYY"  ##TEST
+TOKEN = "420659811:AAFF2rKdrUXxXuHQW0KPZt8SUxwRf-CRBE8"   ##PRODUCTION
+#TOKEN = "371830775:AAEZld4C0qyuvxStk10ojImvBoKo5CNDsYY"  ##TEST
 
 bot = telepot.aio.DelegatorBot(TOKEN, [
     pave_event_space()(
