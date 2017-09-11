@@ -65,12 +65,14 @@ class InlineHandler(InlineUserHandler, AnswererMixin):
             for search_result in search_response.get("items", []):
                 id_articolo = uuid4().hex
                 if search_result["id"]["kind"] == "youtube#video":
-                    articles.append({'type': 'article',
+                    articles.append({'type': 'video',
                                      'id': id_articolo,
+                                     'video_url': "www.youtube.it/watch?v=%s" % search_result["id"]["videoId"],
+                                     "mime_type": "text/html",
                                      'title': search_result["snippet"]["title"],
                                      'description': search_result["snippet"]["description"],
                                      "thumb_url":   search_result["snippet"]["thumbnails"]["default"]["url"],
-                                     'message_text': "www.youtube.it/watch?v=%s" % search_result["id"]["videoId"]})
+                                     "message_text": "www.youtube.it/watch?v=%s" % search_result["id"]["videoId"]})
                 
             return articles
         self.answerer.answer(msg, compute_answer)
@@ -81,8 +83,8 @@ class InlineHandler(InlineUserHandler, AnswererMixin):
         p(str(self.id) + ':' + 'Chosen Inline Result:' + " "+ str(result_id) + " "+ str(from_id) + " "+ str(query_string))
 
 
-TOKEN = "420659811:AAFF2rKdrUXxXuHQW0KPZt8SUxwRf-CRBE8"   ##PRODUCTION
-#TOKEN = "371830775:AAEZld4C0qyuvxStk10ojImvBoKo5CNDsYY"  ##TEST
+#TOKEN = "420659811:AAFF2rKdrUXxXuHQW0KPZt8SUxwRf-CRBE8"   ##PRODUCTION
+TOKEN = "371830775:AAEZld4C0qyuvxStk10ojImvBoKo5CNDsYY"  ##TEST
 
 bot = telepot.aio.DelegatorBot(TOKEN, [
     pave_event_space()(
