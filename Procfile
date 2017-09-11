@@ -1,2 +1,2 @@
-web: gunicorn gettingstarted.wsgi --log-file -
 web: python main.py
+worker: python main.py
