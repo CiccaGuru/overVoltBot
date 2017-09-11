@@ -4,7 +4,6 @@ import telepot
 from telepot.aio.loop import MessageLoop
 from telepot.aio.helper import InlineUserHandler, AnswererMixin
 from telepot.aio.delegate import per_inline_from_id, create_open, pave_event_space
-from pprint import pprint
 from uuid import uuid4
 def p(text):
     print(text)
@@ -18,9 +17,8 @@ class InlineHandler(InlineUserHandler, AnswererMixin):
             query_id, from_id, url = telepot.glance(msg, flavor='inline_query')
             id_referral = uuid4().hex
             newUrl = url;
-            splitted = url.split("/")
             counter = 0
-            if splitted[2] == "www.amazon.it":
+            if "amazon.it" in url:
                 length = len(url);
                 tagIndex = url.find("tag=")
                 while tagIndex > 0:
@@ -34,7 +32,7 @@ class InlineHandler(InlineUserHandler, AnswererMixin):
                     counter+=1
                 separator = url.find("?")>0 and  "&" or "?"
                 newUrl = url + separator + "tag=overVolt-21"
-            elif splitted[2] == "www.banggood.com":
+            elif "banggood.com" in url:
                 index = url.find(".html");
                 if not (".html?p=63091629786202015112" in url) and index > 0:
                     newUrl = url[0:index] +  ".html?p=63091629786202015112"
@@ -50,6 +48,7 @@ class InlineHandler(InlineUserHandler, AnswererMixin):
 
 
 TOKEN = "420659811:AAFF2rKdrUXxXuHQW0KPZt8SUxwRf-CRBE8"
+#TOKEN = "371830775:AAEZld4C0qyuvxStk10ojImvBoKo5CNDsYY"
 
 bot = telepot.aio.DelegatorBot(TOKEN, [
     pave_event_space()(
