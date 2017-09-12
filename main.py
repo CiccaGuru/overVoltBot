@@ -151,5 +151,3 @@ loop = asyncio.get_event_loop()
 loop.create_task(MessageLoop(bot).run_forever())
 p('Listening ...')
 loop.run_forever()
-
-
