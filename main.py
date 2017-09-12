@@ -102,14 +102,15 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
             (status,messaggio,store) = self.getReferralLink(url)
             await self.sender.sendMessage(messaggio)
         elif splitted[0] == "/youtube":
-            results = self.searchYoutube(msg["text"], 1)
+            results = self.searchYoutube(splitted[1:], 1)
             messaggio = results[0]["message_text"]
             await self.sender.sendMessage(messaggio)
-        
+        elif splitted[0] == "/start":
+            await self.sender.sendMessage("Comandi disponibili: \n - /referral [link]: applica il referral di OverVolt \n - /youtube [query]: ricerca tra i video di OverVolt", parse_mode = "html")
 
 
 #TOKEN = "420659811:AAFF2rKdrUXxXuHQW0KPZt8SUxwRf-CRBE8"   ##PRODUCTION
-#TOKEN = "371830775:AAEZld4C0qyuvxStk10ojImvBoKo5CNDsYY"  ##TEST
+TOKEN = "371830775:AAEZld4C0qyuvxStk10ojImvBoKo5CNDsYY"  ##TEST
 TOKEN = "235898396:AAHCcT94w-aCZS2THya8ho2SIc2xLDvVkQ0" #MARCO
 bot = telepot.aio.DelegatorBot(TOKEN, [
     pave_event_space()(
