@@ -20,61 +20,71 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
     def __init__(self, *args, **kwargs):
         super(OverVoltBot, self).__init__(*args, **kwargs)
         self.count = 0
+
+    def getReferralLink(self, url):
+        newUrl = url
+        messaggio = "</i>Impossibile applicare il referral</i>"
+        success = False
+        if "amazon.it" in url:
+            length = len(url);
+            tagIndex = url.find("tag=")
+            while tagIndex > 0:
+                nextParameterIndex = url.find("&", tagIndex)
+                if nextParameterIndex+tagIndex+1>=length or nextParameterIndex <0:
+                    url = url[:tagIndex];
+                else:
+                    url = url[:tagIndex] + url.slice[nextParameterIndex + tagIndex:]
+                length = url.length;
+                tagIndex =url.find("tag=")
+            separator = url.find("?")>0 and  "&" or "?"
+            newUrl = url + separator + "tag=overVolt-21"
+            messaggio = newUrl
+            success = True
+            store = "Amazon"
+        elif "banggood.com" in url:
+            index = url.find(".html");
+            if not (".html?p=63091629786202015112" in url) and index > 0:
+                newUrl = url[0:index] +  ".html?p=63091629786202015112"
+            messaggio = newUrl
+            success = True
+            store = "Amazon"
+        return (success, messaggio, store)
+
+    def searchYoutube(self, query, numResults):
+        youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION,
+        developerKey=DEVELOPER_KEY)
+        results = []
+        search_response = youtube.search().list(
+            q=query,
+            part="id,snippet",
+            maxResults=numResults,
+            order="viewCount",
+            type="video",
+            channelId="UCw6ekhAtFahKr7gImCIoYwg"
+        ).execute()
+        for search_result in search_response.get("items", []):
+            id_articolo = uuid4().hex
+            if search_result["id"]["kind"] == "youtube#video":
+                results.append({'type': 'video',
+                                 'id': id_articolo,
+                                 'video_url': "www.youtube.it/watch?v=%s" % search_result["id"]["videoId"],
+                                 "mime_type": "text/html",
+                                 'title': search_result["snippet"]["title"],
+                                 'description': search_result["snippet"]["description"],
+                                 "thumb_url":   search_result["snippet"]["thumbnails"]["default"]["url"],
+                                 "message_text": "www.youtube.it/watch?v=%s" % search_result["id"]["videoId"]})
+        return results
                         
     def on_inline_query(self, msg):
         def compute_answer():
             query_id, from_id, telegramQuery = telepot.glance(msg, flavor='inline_query')
             id_referral = uuid4().hex
             url = telegramQuery
-            newUrl = url
-            counter = 0
             articles = []
-            if "amazon.it" in url:
-                length = len(url);
-                tagIndex = url.find("tag=")
-                while tagIndex > 0:
-                    nextParameterIndex = url.find("&", tagIndex)
-                    if nextParameterIndex+tagIndex+1>=length or nextParameterIndex <0:
-                        url = url[:tagIndex];
-                    else:
-                        url = url[:tagIndex] + url.slice[nextParameterIndex + tagIndex:]
-                    length = url.length;
-                    tagIndex =url.find("tag=")
-                    counter+=1
-                separator = url.find("?")>0 and  "&" or "?"
-                newUrl = url + separator + "tag=overVolt-21"
-                articles.append({'type': 'article', 'id': id_referral, 'title': "Applica referral su Amazon", 'message_text': newUrl})
-            elif "banggood.com" in url:
-                index = url.find(".html");
-                if not (".html?p=63091629786202015112" in url) and index > 0:
-                    newUrl = url[0:index] +  ".html?p=63091629786202015112"
-                articles.append({'type': 'article', 'id': id_referral, 'title': "Applica referral su Banggood", 'message_text': newUrl})
-                    
-            youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION,
-            developerKey=DEVELOPER_KEY)
-
-            # Call the search.list method to retrieve results matching the specified
-            # query term.
-            search_response = youtube.search().list(
-                q=telegramQuery,
-                part="id,snippet",
-                maxResults=5,
-                order="viewCount",
-                type="video",
-                channelId="UCw6ekhAtFahKr7gImCIoYwg"
-            ).execute()
-            for search_result in search_response.get("items", []):
-                id_articolo = uuid4().hex
-                if search_result["id"]["kind"] == "youtube#video":
-                    articles.append({'type': 'video',
-                                     'id': id_articolo,
-                                     'video_url': "www.youtube.it/watch?v=%s" % search_result["id"]["videoId"],
-                                     "mime_type": "text/html",
-                                     'title': search_result["snippet"]["title"],
-                                     'description': search_result["snippet"]["description"],
-                                     "thumb_url":   search_result["snippet"]["thumbnails"]["default"]["url"],
-                                     "message_text": "www.youtube.it/watch?v=%s" % search_result["id"]["videoId"]})
-                
+            (success, messaggio, store) = getReferralLink(telegramQuery)
+            if success:
+                articles.append({'type': 'article', 'id': id_referral, 'title': "Applica referral su "+store, 'message_text': messaggio})
+            articles.extend(self.searchYoutube(telegramQuery, 5))
             return articles
         self.answerer.answer(msg, compute_answer)
 
@@ -83,61 +93,19 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
         result_id, from_id, query_string = telepot.glance(msg, flavor='chosen_inline_result')
         p(str(self.id) + ':' + 'Chosen Inline Result:' + " "+ str(result_id) + " "+ str(from_id) + " "+ str(query_string))
 
-
-
-
-
-
-
-
     async def on_chat_message(self, msg):
-        if msg["chat"]["id"] > 0:
-            id_referral = uuid4().hex
-            url = msg["text"]
-            newUrl = url
-            counter = 0
-            articles = []
-            messaggio = "Non ho trovato risultati"
-            if "amazon.it" in url:
-                length = len(url);
-                tagIndex = url.find("tag=")
-                while tagIndex > 0:
-                    nextParameterIndex = url.find("&", tagIndex)
-                    if nextParameterIndex+tagIndex+1>=length or nextParameterIndex <0:
-                        url = url[:tagIndex];
-                    else:
-                        url = url[:tagIndex] + url.slice[nextParameterIndex + tagIndex:]
-                    length = url.length;
-                    tagIndex =url.find("tag=")
-                    counter+=1
-                separator = url.find("?")>0 and  "&" or "?"
-                newUrl = url + separator + "tag=overVolt-21"
-                messaggio = newUrl
-            elif "banggood.com" in url:
-                index = url.find(".html");
-                if not (".html?p=63091629786202015112" in url) and index > 0:
-                    newUrl = url[0:index] +  ".html?p=63091629786202015112"
-                messaggio = newUrl
-                    
-            youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION,
-            developerKey=DEVELOPER_KEY)
-
-            # Call the search.list method to retrieve results matching the specified
-            # query term.
-            p(msg["text"])
-            search_response = youtube.search().list(
-                q=msg["text"],
-                part="id,snippet",
-                maxResults=1,
-                order="viewCount",
-                type="video",
-                channelId="UCw6ekhAtFahKr7gImCIoYwg"
-            ).execute()
-            for search_result in search_response.get("items", []):
-                id_articolo = uuid4().hex
-                if search_result["id"]["kind"] == "youtube#video":
-                    messaggio = "www.youtube.it/watch?v=%s" % search_result["id"]["videoId"]
+        p(msg["text"])
+        id_referral = uuid4().hex
+        splitted = msg["text"].split()
+        if splitted[0] == "/referral":
+            url = " ".join(splitted[1:])
+            (status,messaggio,store) = self.getReferralLink(url)
             await self.sender.sendMessage(messaggio)
+        elif splitted[0] == "/youtube":
+            results = self.searchYoutube(msg["text"], 1)
+            messaggio = results[0]["message_text"]
+            await self.sender.sendMessage(messaggio)
+        
 
 
 #TOKEN = "420659811:AAFF2rKdrUXxXuHQW0KPZt8SUxwRf-CRBE8"   ##PRODUCTION
