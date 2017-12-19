@@ -2,7 +2,7 @@
 
 This is the official bot for the YouTube channel [overVolt](https://www.youtube.it/overVoltOfficial)
 
-## Make it work with yout own bot
+## Make it work with your own bot
 In order to make it work with your own bot you need to:
 1. Install `pip3` using your package manager
 2. Create a folder in which you'll download the repo folder
