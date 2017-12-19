@@ -155,7 +155,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
         elif msg['from']['id'] == msg['chat']['id']:
             await self.sender.sendMessage(emoji.emojize('Non ho capito :pensive_face:\n\n Scrivi /help per sapere come funziono.'), parse_mode = "html")
 
-token_file = open('TOKEN_TEST')
+token_file = open('TOKEN')
 TOKEN = token_file.read().strip()
 token_file.close()
 bot = telepot.aio.DelegatorBot(TOKEN, [
