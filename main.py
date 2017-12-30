@@ -24,6 +24,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
         self.CHANNEL_ID = read_channel_id.read().strip()
         self.GEARBEST_REFERRAL = "12357131"
         self.BANGGOOD_REFERRAL = "63091629786202015112"
+        self.AMAZON_REFERRAL = "overvolt-21"
 
     def getReferralLink(self, url):
         newUrl = url
@@ -31,7 +32,20 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
         success = False
         store = ""
         if "amazon.it" in url:
-            messaggio = '<i>Purtroppo attualmente non funzionano i referral per Amazon</i>'
+            length = len(url)
+            tagIndex = url.find("tag=")
+            while tagIndex > 0:
+                nextParameterIndex = url.find("&", tagIndex)
+                if nextParameterIndex <0:
+                    url = url[:tagIndex-1]
+                else:
+                    url = url[:tagIndex-1] + url[nextParameterIndex:]
+                length = len(url);
+                tagIndex =url.find("tag=")
+            separator = url.find("?")>0 and  "&" or "?"
+            newUrl = url + separator + "tag=" + self.AMAZON_REFERRAL
+            print(newUrl)
+            messaggio = newUrl
             success = True
             store = "Amazon"
         elif "banggood.com" in url:
@@ -155,7 +169,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
         elif msg['from']['id'] == msg['chat']['id']:
             await self.sender.sendMessage(emoji.emojize('Non ho capito :pensive_face:\n\n Scrivi /help per sapere come funziono.'), parse_mode = "html")
 
-token_file = open('TOKEN')
+token_file = open('TOKEN_TEST')
 TOKEN = token_file.read().strip()
 token_file.close()
 bot = telepot.aio.DelegatorBot(TOKEN, [
