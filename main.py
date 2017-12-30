@@ -16,7 +16,8 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
     def __init__(self, *args, **kwargs):
         super(OverVoltBot, self).__init__(*args, **kwargs)
         self.count = 0
-        read_dev_key = open('DEVELOPER_KEY')
+        my_dir = os.path.dirname(os.path.abspath(__file__))
+        read_dev_key = open(os.path.join(my_dir, "DEVELOPER_KEY"))
         self.DEVELOPER_KEY = read_dev_key.read().strip()
         read_dev_key.close()
         self.YOUTUBE_API_SERVICE_NAME = "youtube"
