@@ -1,4 +1,5 @@
 import sys
+import os
 import asyncio
 import telepot
 from telepot.aio.loop import MessageLoop
@@ -169,7 +170,9 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
         elif msg['from']['id'] == msg['chat']['id']:
             await self.sender.sendMessage(emoji.emojize('Non ho capito :pensive_face:\n\n Scrivi /help per sapere come funziono.'), parse_mode = "html")
 
-token_file = open('TOKEN')
+
+my_dir = os.path.dirname(os.path.abspath(__file__))
+token_file = open(os.path.join(my_dir, "TOKEN"))
 TOKEN = token_file.read().strip()
 token_file.close()
 bot = telepot.aio.DelegatorBot(TOKEN, [
