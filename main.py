@@ -22,7 +22,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
         read_dev_key.close()
         self.YOUTUBE_API_SERVICE_NAME = "youtube"
         self.YOUTUBE_API_VERSION = "v3"
-        read_channel_id = open("CHANNEL_ID")
+        read_channel_id = open(os.path.join(my_dir, "CHANNEL_ID"))
         self.CHANNEL_ID = read_channel_id.read().strip()
         self.GEARBEST_REFERRAL = "12357131"
         self.BANGGOOD_REFERRAL = "63091629786202015112"
