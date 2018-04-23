@@ -1,21 +1,21 @@
-import sys
-import os
-import asyncio
-import telepot
+import sys, os, asyncio, telepot, emoji, re, json, urllib.request
 from telepot.aio.loop import MessageLoop
-from telepot.aio.helper import InlineUserHandler, AnswererMixin
+from telepot.aio.helper import InlineUserHandler, AnswererMixin, Editor
 from telepot.aio.delegate import per_inline_from_id, create_open, pave_event_space, per_chat_id
 from uuid import uuid4
 from apiclient.discovery import build
 from apiclient.errors import HttpError
 from oauth2client.tools import argparser
 from random import randint
-import emoji
+
 
 class OverVoltBot(InlineUserHandler, AnswererMixin):
+
+    URL_REGEX = r"""(?i)\b((?:https?:(?:/{1,3}|[a-z0-9%])|[a-z0-9.\-]+[.](?:com|net|org|edu|gov|mil|aero|asia|biz|cat|coop|info|int|jobs|mobi|museum|name|post|pro|tel|travel|xxx|ac|ad|ae|af|ag|ai|al|am|an|ao|aq|ar|as|at|au|aw|ax|az|ba|bb|bd|be|bf|bg|bh|bi|bj|bm|bn|bo|br|bs|bt|bv|bw|by|bz|ca|cc|cd|cf|cg|ch|ci|ck|cl|cm|cn|co|cr|cs|cu|cv|cx|cy|cz|dd|de|dj|dk|dm|do|dz|ec|ee|eg|eh|er|es|et|eu|fi|fj|fk|fm|fo|fr|ga|gb|gd|ge|gf|gg|gh|gi|gl|gm|gn|gp|gq|gr|gs|gt|gu|gw|gy|hk|hm|hn|hr|ht|hu|id|ie|il|im|in|io|iq|ir|is|it|je|jm|jo|jp|ke|kg|kh|ki|km|kn|kp|kr|kw|ky|kz|la|lb|lc|li|lk|lr|ls|lt|lu|lv|ly|ma|mc|md|me|mg|mh|mk|ml|mm|mn|mo|mp|mq|mr|ms|mt|mu|mv|mw|mx|my|mz|na|nc|ne|nf|ng|ni|nl|no|np|nr|nu|nz|om|pa|pe|pf|pg|ph|pk|pl|pm|pn|pr|ps|pt|pw|py|qa|re|ro|rs|ru|rw|sa|sb|sc|sd|se|sg|sh|si|sj|Ja|sk|sl|sm|sn|so|sr|ss|st|su|sv|sx|sy|sz|tc|td|tf|tg|th|tj|tk|tl|tm|tn|to|tp|tr|tt|tv|tw|tz|ua|ug|uk|us|uy|uz|va|vc|ve|vg|vi|vn|vu|wf|ws|ye|yt|yu|za|zm|zw)/)(?:[^\s()<>{}\[\]]+|\([^\s()]*?\([^\s()]+\)[^\s()]*?\)|\([^\s]+?\))+(?:\([^\s()]*?\([^\s()]+\)[^\s()]*?\)|\([^\s]+?\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’])|(?:(?<!@)[a-z0-9]+(?:[.\-][a-z0-9]+)*[.](?:com|net|org|edu|gov|mil|aero|asia|biz|cat|coop|info|int|jobs|mobi|museum|name|post|pro|tel|travel|xxx|ac|ad|ae|af|ag|ai|al|am|an|ao|aq|ar|as|at|au|aw|ax|az|ba|bb|bd|be|bf|bg|bh|bi|bj|bm|bn|bo|br|bs|bt|bv|bw|by|bz|ca|cc|cd|cf|cg|ch|ci|ck|cl|cm|cn|co|cr|cs|cu|cv|cx|cy|cz|dd|de|dj|dk|dm|do|dz|ec|ee|eg|eh|er|es|et|eu|fi|fj|fk|fm|fo|fr|ga|gb|gd|ge|gf|gg|gh|gi|gl|gm|gn|gp|gq|gr|gs|gt|gu|gw|gy|hk|hm|hn|hr|ht|hu|id|ie|il|im|in|io|iq|ir|is|it|je|jm|jo|jp|ke|kg|kh|ki|km|kn|kp|kr|kw|ky|kz|la|lb|lc|li|lk|lr|ls|lt|lu|lv|ly|ma|mc|md|me|mg|mh|mk|ml|mm|mn|mo|mp|mq|mr|ms|mt|mu|mv|mw|mx|my|mz|na|nc|ne|nf|ng|ni|nl|no|np|nr|nu|nz|om|pa|pe|pf|pg|ph|pk|pl|pm|pn|pr|ps|pt|pw|py|qa|re|ro|rs|ru|rw|sa|sb|sc|sd|se|sg|sh|si|sj|Ja|sk|sl|sm|sn|so|sr|ss|st|su|sv|sx|sy|sz|tc|td|tf|tg|th|tj|tk|tl|tm|tn|to|tp|tr|tt|tv|tw|tz|ua|ug|uk|us|uy|uz|va|vc|ve|vg|vi|vn|vu|wf|ws|ye|yt|yu|za|zm|zw)\b/?(?!@)))"""
     def __init__(self, *args, **kwargs):
         super(OverVoltBot, self).__init__(*args, **kwargs)
         self.count = 0
+
         my_dir = os.path.dirname(os.path.abspath(__file__))
         read_dev_key = open(os.path.join(my_dir, "DEVELOPER_KEY"))
         self.DEVELOPER_KEY = read_dev_key.read().strip()
@@ -88,6 +88,23 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
             store = "Gearbest"
         return (success, messaggio, store)
 
+    def short(self, long_url):
+        long_url = long_url.replace("&", "%26")
+        bitlyApi = 'https://api-ssl.bitly.com/v3/shorten?access_token=e8de1a5482420f3dbd0790fdffa93ba6e415d7f9&longUrl=%s' % long_url
+        try:
+            with urllib.request.urlopen(bitlyApi) as r:
+                data = r.read().decode()
+                data = json.loads(data)
+                data = data['data']
+                data = data['url']
+                data = data.replace("https://", "")
+                data = data.replace("http://", "")
+        except Exception:
+            print(data)
+            data = long_url
+        return data
+
+
     def searchYoutube(self, query, numResults, random):
         youtube = build(self.YOUTUBE_API_SERVICE_NAME, self.YOUTUBE_API_VERSION, developerKey=self.DEVELOPER_KEY)
         results = []
@@ -134,7 +151,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
                                      "thumb_url":   search_result["snippet"]["thumbnails"]["default"]["url"],
                                      "message_text": "www.youtube.it/watch?v=%s" % search_result["id"]["videoId"]})
         return results
-                        
+
     def on_inline_query(self, msg):
         def compute_answer():
             query_id, from_id, telegramQuery = telepot.glance(msg, flavor='inline_query')
@@ -150,6 +167,21 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
 
     def on_chosen_inline_result(self, msg):
         result_id, from_id, query_string = telepot.glance(msg, flavor='chosen_inline_result', parse_mode = "html")
+
+
+    async def check_referral(self, urls, msg):
+        new_urls = []
+        for url in urls:
+            if "amzn.to" in url or "bit.ly" in url or "goo.gl" in url:
+                richiesta = urllib.request.urlopen(url)
+                url = richiesta.geturl()
+            if ("amazon" in url and "tag" in url and ("overvolt-21" not in url or "offervolt-21" not in url)) or ("banggood" in url and "p=" in url and self.BANGGOOD_REFERRAL not in url) or ("gearbest" in url and "lkid" in url and self.GEARBEST_REFERRAL not in url):
+                await self.sender.sendMessage("Cattivo bambino, non si usano i referral non di marco! Te li correggo io ")
+                self.helper.deleteMessage(telepot.message_identifier(msg))
+            if "amazon" in url or "banggood" in url or "gearbest" in url:
+                new_urls.append(self.short(self.getReferralLink(url)[1]))
+        return new_urls
+
 
     async def on_chat_message(self, msg):
         id_referral = uuid4().hex
@@ -170,10 +202,24 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
             await self.sender.sendMessage("Ciao, sono il bot di overVolt :robot:! \n\n Per ora so: \n\n<b>Aggiungere un referral a un link</b>\nMandami un link di <b>Banggood</b> o <b>Gearbest</b> con il comando /referral &lt link &gt e io aggiungerò il referral! \n\n<b>Cercare su YouTube un video di overVolt</b>\nUsa il comando /youtube &lt stringa &gt per cercare su Youtube!", parse_mode = "html")
         elif msg['from']['id'] == msg['chat']['id']:
             await self.sender.sendMessage(emoji.emojize('Non ho capito :pensive_face:\n\n Scrivi /help per sapere come funziono.'), parse_mode = "html")
-
+        if msg['chat']['id']<0:
+            testo = msg["text"]
+            urls = re.findall(self.URL_REGEX, testo)
+            editor = Editor(self.bot, telepot.message_identifier(msg))
+            if "/parla" in testo:
+                await self.sender.sendMessage(testo.replace("/parla", ""))
+                await editor.deleteMessage()
+            else:
+                if len(urls)>0:
+                    new_urls = await self.check_referral(urls, msg)
+                    if len(new_urls) > 0:
+                        for i in range(0,len(new_urls)):
+                            testo = testo.replace(urls[i], new_urls[i])
+                        await self.sender.sendMessage("[<b>Inviato da "+msg["from"]["first_name"] +" "+ msg["from"]["last_name"]+"] </b>\n\n" + testo, parse_mode="html")
+                        await editor.deleteMessage()
 
 my_dir = os.path.dirname(os.path.abspath(__file__))
-token_file = open(os.path.join(my_dir, "TOKEN"))
+token_file = open(os.path.join(my_dir, "TOKEN_TEST"))
 TOKEN = token_file.read().strip()
 token_file.close()
 bot = telepot.aio.DelegatorBot(TOKEN, [
