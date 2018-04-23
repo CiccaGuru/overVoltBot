@@ -204,10 +204,12 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
             await self.sender.sendMessage(emoji.emojize('Non ho capito :pensive_face:\n\n Scrivi /help per sapere come funziono.'), parse_mode = "html")
         if msg['chat']['id']<0:
             testo = msg["text"]
+            userId = msg["from"]["id"]
             urls = re.findall(self.URL_REGEX, testo)
             editor = Editor(self.bot, telepot.message_identifier(msg))
-            if "/parla" in testo:
-                await self.sender.sendMessage(testo.replace("/parla", ""))
+            if testo.split()[0] == "/parla":
+                if userId in [50967453, 368894926, 77080264]:
+                    await self.sender.sendMessage(testo.replace("/parla", ""))
                 await editor.deleteMessage()
             else:
                 if len(urls)>0:
