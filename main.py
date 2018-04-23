@@ -177,7 +177,6 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
                 url = richiesta.geturl()
             if ("amazon" in url and "tag" in url and ("overvolt-21" not in url or "offervolt-21" not in url)) or ("banggood" in url and "p=" in url and self.BANGGOOD_REFERRAL not in url) or ("gearbest" in url and "lkid" in url and self.GEARBEST_REFERRAL not in url):
                 await self.sender.sendMessage("Cattivo bambino, non si usano i referral non di marco! Te li correggo io ")
-                self.helper.deleteMessage(telepot.message_identifier(msg))
             if "amazon" in url or "banggood" in url or "gearbest" in url:
                 new_urls.append(self.short(self.getReferralLink(url)[1]))
         return new_urls
@@ -214,6 +213,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
             else:
                 if len(urls)>0:
                     new_urls = await self.check_referral(urls, msg)
+                    print(new_urls)
                     if len(new_urls) > 0:
                         for i in range(0,len(new_urls)):
                             testo = testo.replace(urls[i], new_urls[i])
@@ -221,7 +221,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
                         await editor.deleteMessage()
 
 my_dir = os.path.dirname(os.path.abspath(__file__))
-token_file = open(os.path.join(my_dir, "TOKEN"))
+token_file = open(os.path.join(my_dir, "TOKEN_TEST"))
 TOKEN = token_file.read().strip()
 token_file.close()
 bot = telepot.aio.DelegatorBot(TOKEN, [
