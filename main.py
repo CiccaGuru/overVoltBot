@@ -217,7 +217,11 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
                     if len(new_urls) > 0:
                         for i in range(0,len(new_urls)):
                             testo = testo.replace(urls[i], new_urls[i])
-                        await self.sender.sendMessage("[<b>Inviato da "+msg["from"]["first_name"] +" "+ msg["from"]["last_name"]+"] </b>\n\n" + testo, parse_mode="html")
+                            try:
+                                nome = msg["from"]["first_name"] +" "+ msg["from"]["last_name"]
+                            except:
+                                nome = msg["from"]["first_name"]
+                        await self.sender.sendMessage("[<b>Inviato da "+nome+"] </b>\n\n" + testo, parse_mode="html")
                         await editor.deleteMessage()
 
 my_dir = os.path.dirname(os.path.abspath(__file__))
