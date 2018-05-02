@@ -231,7 +231,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
                         await editor.deleteMessage()
 
 my_dir = os.path.dirname(os.path.abspath(__file__))
-token_file = open(os.path.join(my_dir, "TOKEN_TEST"))
+token_file = open(os.path.join(my_dir, "TOKEN"))
 TOKEN = token_file.read().strip()
 token_file.close()
 bot = telepot.aio.DelegatorBot(TOKEN, [
