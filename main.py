@@ -28,6 +28,22 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
         self.BANGGOOD_REFERRAL = "63091629786202015112"
         self.AMAZON_REFERRAL = "overvolt-21"
 
+    def removeTag(self, url, tag):
+        length = len(url)
+        tagIndex = url.find(tag+"=")
+        while tagIndex > 0:
+            nextParameterIndex = url[tagIndex:].find("&")
+            if (nextParameterIndex+tagIndex+1>=length) or (nextParameterIndex <0):
+                url = url[:(tagIndex-1)]
+            else:
+                if url[tagIndex-1] == "?":
+                    url = url[:(tagIndex-1)] + "?" + url[(nextParameterIndex+tagIndex+1):]
+                else:
+                    url = url[:(tagIndex-1)] + url[(nextParameterIndex+tagIndex):]
+            length = len(url)
+            tagIndex = url.find("p=")
+        return url
+
     def getReferralLink(self, url):
         newUrl = url
         messaggio = '<i>Impossibile applicare il referral</i>'
@@ -35,18 +51,9 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
         store = ""
         if "amazon.it" in url:
             length = len(url)
-            tagIndex = url.find("tag=")
-            while tagIndex > 0:
-                nextParameterIndex = url.find("&", tagIndex)
-                if nextParameterIndex <0:
-                    url = url[:tagIndex-1]
-                else:
-                    url = url[:tagIndex-1] + url[nextParameterIndex:]
-                length = len(url);
-                tagIndex =url.find("tag=")
+            url = self.removeTag(self.removeTag(self.removeTag(url, "ref"), "linkId"), "tag")
             separator = url.find("?")>0 and  "&" or "?"
             newUrl = url + separator + "tag=" + self.AMAZON_REFERRAL
-            print(newUrl)
             messaggio = newUrl
             success = True
             store = "Amazon"
@@ -55,18 +62,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
             indexHtml = url.find(".html")
             indexTag = url.find("p=")
             if indexHtml > 0:
-                while indexTag > 0:
-                    nextParameterIndex = url[indexTag:].find("&")
-                    if (nextParameterIndex+indexTag+1>=length) or (nextParameterIndex <0):
-                        url = url[:(indexTag-1)]
-                    else:
-                        if url[indexTag-1] == "?":
-                            url = url[:(indexTag-1)] + "?" + url[(nextParameterIndex+indexTag+1):]
-                        else:
-                            url = url[:(indexTag-1)] + url[(nextParameterIndex+indexTag):]
-                    length = len(url)
-                    indexTag = url.find("p=")
-                separator = url.find("?")>0 and "&" or "?";
+                url = self.removeTag(url, "p")
                 newUrl = url + separator +  "p="+self.BANGGOOD_REFERRAL;
             messaggio = newUrl
             success = True
@@ -76,17 +72,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
             indexHtml = url.find(".html")
             indexTag = url.find("lkid=")
             if indexHtml > 0:
-                while indexTag > 0:
-                    nextParameterIndex = url[indexTag:].find("&")
-                    if (nextParameterIndex+indexTag+1>=length) or (nextParameterIndex <0):
-                        url = url[:(indexTag-1)]
-                    else:
-                        if url[indexTag-1] == "?":
-                            url = url[:(indexTag-1)] + "?" + url[(nextParameterIndex+indexTag+1):]
-                        else:
-                            url = url[:(indexTag-1)] + url[(nextParameterIndex+indexTag):]
-                    length = len(url)
-                    indexTag = url.find("lkid=")
+                url = self.removeTag(url, "lkid")
                 separator = url.find("?")>0 and "&" or "?";
                 newUrl = url + separator +  "lkid="+self.GEARBEST_REFERRAL;
             messaggio = newUrl
@@ -231,7 +217,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
                         await editor.deleteMessage()
 
 my_dir = os.path.dirname(os.path.abspath(__file__))
-token_file = open(os.path.join(my_dir, "TOKEN"))
+token_file = open(os.path.join(my_dir, "TOKEN_TEST"))
 TOKEN = token_file.read().strip()
 token_file.close()
 bot = telepot.aio.DelegatorBot(TOKEN, [
