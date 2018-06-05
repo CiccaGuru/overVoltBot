@@ -36,12 +36,12 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
             if (nextParameterIndex+tagIndex+1>=length) or (nextParameterIndex <0):
                 url = url[:(tagIndex-1)]
             else:
-                if url[tagIndex-1] == "?":
-                    url = url[:(tagIndex-1)] + "?" + url[(nextParameterIndex+tagIndex+1):]
+                if url[tagIndex-1] != "&":
+                    url = url[:(tagIndex)]  + url[(nextParameterIndex+tagIndex+1):]
                 else:
                     url = url[:(tagIndex-1)] + url[(nextParameterIndex+tagIndex):]
             length = len(url)
-            tagIndex = url.find("p=")
+            tagIndex = url.find(tag+"=")
         return url
 
     def getReferralLink(self, url):
