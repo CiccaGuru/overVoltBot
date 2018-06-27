@@ -72,7 +72,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
             indexHtml = url.find(".html")
             indexTag = url.find("lkid=")
             if indexHtml > 0:
-                url = self.removeTag(url, "lkid")
+                url = self.removeTag(self.removeTag(url, "eo"), "lkid")
                 separator = url.find("?")>0 and "&" or "?";
                 newUrl = url + separator +  "lkid="+self.GEARBEST_REFERRAL;
             messaggio = newUrl
