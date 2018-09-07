@@ -1,4 +1,4 @@
-import sys, os, asyncio, telepot, emoji, re, json, urllib.request
+import sys, os, asyncio, telepot, emoji, re, json, urllib.request, time
 from telepot.aio.loop import MessageLoop
 from telepot.aio.helper import InlineUserHandler, AnswererMixin, Editor
 from telepot.aio.delegate import per_inline_from_id, create_open, pave_event_space, per_chat_id
@@ -7,7 +7,7 @@ from apiclient.discovery import build
 from apiclient.errors import HttpError
 from oauth2client.tools import argparser
 from random import randint
-
+from tinydb import TinyDB, where
 
 class OverVoltBot(InlineUserHandler, AnswererMixin):
 
@@ -27,6 +27,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
         self.GEARBEST_REFERRAL = "12357131"
         self.BANGGOOD_REFERRAL = "63091629786202015112"
         self.AMAZON_REFERRAL = "overvolt-21"
+        self.db_users = TinyDB('users.json')
 
     def removeTag(self, url, tag):
         length = len(url)
@@ -72,7 +73,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
             indexHtml = url.find(".html")
             indexTag = url.find("lkid=")
             if indexHtml > 0:
-                url = self.removeTag(url, "lkid")
+                url = self.removeTag(self.removeTag(url, "eo"), "lkid")
                 separator = url.find("?")>0 and "&" or "?";
                 newUrl = url + separator +  "lkid="+self.GEARBEST_REFERRAL;
             messaggio = newUrl
@@ -161,6 +162,14 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
         result_id, from_id, query_string = telepot.glance(msg, flavor='chosen_inline_result', parse_mode = "html")
 
 
+    def updateUserDatabase(self, id, firstName, lastName, username):
+        if self.db_users.search(where('chatId') == id):
+            self.db_users.update({'firstName': firstName, 'lastName': lastName, 'username': username, 'lastMsgDate': int(time.time())}, where('chatId') == id)
+        else:
+            self.db_users.insert({'chatId': id, 'firstName': firstName, 'lastName': lastName, 'username': username, 'warns': "0", 'lastMsgDate': int(time.time())})
+
+
+
     async def check_referral(self, urls, msg):
         new_urls = []
         for url in urls:
@@ -176,10 +185,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
 
     async def on_chat_message(self, msg):
         id_referral = uuid4().hex
-        if "text" in msg:
-            splitted = msg["text"].split()
-        else:
-            return
+        splitted = msg["text"].split()
         if splitted[0] == "/referral":
             (status,messaggio,store) = self.getReferralLink(" ".join(splitted[1:]))
             await self.sender.sendMessage(messaggio, parse_mode = "html")
@@ -201,6 +207,17 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
             userId = msg["from"]["id"]
             urls = re.findall(self.URL_REGEX, testo)
             editor = Editor(self.bot, telepot.message_identifier(msg))
+
+            if msg['chat']['id'] == -1001108947027:
+                try:
+                    from_lastName = msg['from']['last_name']
+                except KeyError:
+                    from_lastName = ""
+                try:
+                    from_username = msg['from']['username']
+                except KeyError:
+                    from_username = ""
+                self.updateUserDatabase(userId, msg['from']['first_name'], from_lastName, from_username)
             if testo.split()[0] == "/parla":
                 if userId in [50967453, 368894926, 77080264]:
                     await self.sender.sendMessage(testo.replace("/parla", ""))
