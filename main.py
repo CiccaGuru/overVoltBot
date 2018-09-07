@@ -185,7 +185,10 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
 
     async def on_chat_message(self, msg):
         id_referral = uuid4().hex
-        splitted = msg["text"].split()
+        if "text" in msg:
+            splitted = msg["text"].split()
+        else:
+            return
         if splitted[0] == "/referral":
             (status,messaggio,store) = self.getReferralLink(" ".join(splitted[1:]))
             await self.sender.sendMessage(messaggio, parse_mode = "html")
