@@ -25,20 +25,22 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
         read_channel_id = open(os.path.join(my_dir, "CHANNEL_ID"))
         self.CHANNEL_ID = read_channel_id.read().strip()
         self.GEARBEST_REFERRAL = "12357131"
-        self.BANGGOOD_REFERRAL = "63091629786202015112"
+        self.BANGGOOD_REFERRAL = "63091629786202015112&utm_campaign=overVolt&utm_content=xiaoanqi"
         self.AMAZON_REFERRAL = "overvolt-21"
         self.db_users = TinyDB('users.json')
+
 
     def removeTag(self, url, tag):
         length = len(url)
         tagIndex = url.find(tag+"=")
+
         while tagIndex > 0:
             nextParameterIndex = url[tagIndex:].find("&")
             if (nextParameterIndex+tagIndex+1>=length) or (nextParameterIndex <0):
                 url = url[:(tagIndex-1)]
             else:
                 if url[tagIndex-1] != "&":
-                    url = url[:(tagIndex)]  + url[(nextParameterIndex+tagIndex+1):]
+                    url = url[:tagIndex]  + url[(nextParameterIndex+tagIndex+1):]
                 else:
                     url = url[:(tagIndex-1)] + url[(nextParameterIndex+tagIndex):]
             length = len(url)
@@ -50,33 +52,31 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
         messaggio = '<i>Impossibile applicare il referral</i>'
         success = False
         store = ""
+        if "amzn.to" in url or "bit.ly" in url or "goo.gl" in url:
+            richiesta = urllib.request.urlopen(url)
+            url = richiesta.geturl()
+
         if "amazon.it" in url:
-            length = len(url)
-            url = self.removeTag(self.removeTag(self.removeTag(url, "ref"), "linkId"), "tag")
+            url = self.removeTag(url, "ref")
+            url = self.removeTag(url, "linkId")
+            url = self.removeTag(url, "tag")
             separator = url.find("?")>0 and  "&" or "?"
-            newUrl = url + separator + "tag=" + self.AMAZON_REFERRAL
-            messaggio = newUrl
+            messaggio = self.short(url + separator + "tag=" + self.AMAZON_REFERRAL)
             success = True
             store = "Amazon"
         elif "banggood.com" in url:
-            length = len(url)
-            indexHtml = url.find(".html")
-            indexTag = url.find("p=")
-            if indexHtml > 0:
-                url = self.removeTag(url, "p")
-                newUrl = url + separator +  "p="+self.BANGGOOD_REFERRAL;
-            messaggio = newUrl
+            url = self.removeTag(url, "p")
+            url = self.removeTag(url, "utm_campaign")
+            url = self.removeTag(url, "utm_content")
+            separator = url.find("?")>0 and  "&" or "?"
+            messaggio = self.short("{0}{1}p={2}".format(url, separator, self.BANGGOOD_REFERRAL))
             success = True
             store = "Banggood"
         elif "gearbest.com" in url:
-            length = len(url)
-            indexHtml = url.find(".html")
-            indexTag = url.find("lkid=")
-            if indexHtml > 0:
-                url = self.removeTag(self.removeTag(url, "eo"), "lkid")
-                separator = url.find("?")>0 and "&" or "?";
-                newUrl = url + separator +  "lkid="+self.GEARBEST_REFERRAL;
-            messaggio = newUrl
+            url = self.removeTag(url, "lkid")
+            url = self.removeTag(url, "eo")
+            separator = url.find("?")>0 and  "&" or "?"
+            messaggio = self.short(url + separator +  "lkid="+self.GEARBEST_REFERRAL)
             success = True
             store = "Gearbest"
         return (success, messaggio, store)
@@ -240,7 +240,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
                         await editor.deleteMessage()
 
 my_dir = os.path.dirname(os.path.abspath(__file__))
-token_file = open(os.path.join(my_dir, "TOKEN"))
+token_file = open(os.path.join(my_dir, "TOKEN_TEST"))
 TOKEN = token_file.read().strip()
 token_file.close()
 bot = telepot.aio.DelegatorBot(TOKEN, [
