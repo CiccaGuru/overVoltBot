@@ -21,7 +21,7 @@ In order to make it work with your own bot you need to:
 At the moment, it has the following functionalities:
 
 ### Referrals
-Add a referral to a given link (`/referral` command) from GearBest or Banggood, both in private chat and inline
+Add a referral to a given link (`/referral` command) from GearBest or Banggood, both in private chat and inline, or simply send a link to the bot
 
 ### YouTube search
 Search Youtube for an overVolt video (`/youtube` command), both in private and inline
