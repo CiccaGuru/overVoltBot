@@ -1,13 +1,12 @@
-import sys, os, asyncio, telepot, emoji, re, json, urllib.request, time
+import os, asyncio, telepot, emoji, re, json, urllib.request, time
 from telepot.aio.loop import MessageLoop
 from telepot.aio.helper import InlineUserHandler, AnswererMixin, Editor
 from telepot.aio.delegate import per_inline_from_id, create_open, pave_event_space, per_chat_id
 from uuid import uuid4
 from apiclient.discovery import build
-from apiclient.errors import HttpError
-from oauth2client.tools import argparser
 from random import randint
 from tinydb import TinyDB, where
+
 
 class OverVoltBot(InlineUserHandler, AnswererMixin):
 
@@ -20,17 +19,20 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
         read_dev_key = open(os.path.join(my_dir, "DEVELOPER_KEY"))
         self.DEVELOPER_KEY = read_dev_key.read().strip()
         read_dev_key.close()
+
         self.YOUTUBE_API_SERVICE_NAME = "youtube"
         self.YOUTUBE_API_VERSION = "v3"
         read_channel_id = open(os.path.join(my_dir, "CHANNEL_ID"))
         self.CHANNEL_ID = read_channel_id.read().strip()
+
         self.GEARBEST_REFERRAL = "12357131"
-        self.BANGGOOD_REFERRAL = "63091629786202015112&utm_campaign=overVolt&utm_content=xiaoanqi"
+        self.BANGGOOD_REFERRAL = "63091629786202015112&utm_campaign=overVolt&utm_content=zhaoqian"
         self.AMAZON_REFERRAL = "overvolt-21"
         self.db_users = TinyDB('users.json')
 
 
-    def removeTag(self, url, tag):
+    @staticmethod
+    def removeTag(url, tag):
         length = len(url)
         tagIndex = url.find(tag+"=")
 
@@ -45,13 +47,15 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
                     url = url[:(tagIndex-1)] + url[(nextParameterIndex+tagIndex):]
             length = len(url)
             tagIndex = url.find(tag+"=")
+
         return url
 
+
     def getReferralLink(self, url):
-        newUrl = url
         messaggio = '<i>Impossibile applicare il referral</i>'
         success = False
         store = ""
+
         if "amzn.to" in url or "bit.ly" in url or "goo.gl" in url:
             richiesta = urllib.request.urlopen(url)
             url = richiesta.geturl()
@@ -61,9 +65,10 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
             url = self.removeTag(url, "linkId")
             url = self.removeTag(url, "tag")
             separator = url.find("?")>0 and  "&" or "?"
-            messaggio = self.short(url + separator + "tag=" + self.AMAZON_REFERRAL)
+            messaggio = self.short("{0}{1}tag={2}".format(url, separator, self.AMAZON_REFERRAL))
             success = True
             store = "Amazon"
+
         elif "banggood.com" in url:
             url = self.removeTag(url, "p")
             url = self.removeTag(url, "utm_campaign")
@@ -72,16 +77,20 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
             messaggio = self.short("{0}{1}p={2}".format(url, separator, self.BANGGOOD_REFERRAL))
             success = True
             store = "Banggood"
+
         elif "gearbest.com" in url:
             url = self.removeTag(url, "lkid")
             url = self.removeTag(url, "eo")
             separator = url.find("?")>0 and  "&" or "?"
-            messaggio = self.short(url + separator +  "lkid="+self.GEARBEST_REFERRAL)
+            messaggio = self.short("{0}{1}lkid={2}".format(url, separator, self.GEARBEST_REFERRAL))
             success = True
             store = "Gearbest"
-        return (success, messaggio, store)
 
-    def short(self, long_url):
+        return success, messaggio, store
+
+
+    @staticmethod
+    def short(long_url):
         long_url = long_url.replace("&", "%26")
         bitlyApi = 'https://api-ssl.bitly.com/v3/shorten?access_token=e8de1a5482420f3dbd0790fdffa93ba6e415d7f9&longUrl=%s' % long_url
         try:
@@ -92,16 +101,19 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
                 data = data['url']
                 data = data.replace("https://", "")
                 data = data.replace("http://", "")
+
         except Exception:
             print(data)
             data = long_url
+
         return data
 
 
     def searchYoutube(self, query, numResults, random):
         youtube = build(self.YOUTUBE_API_SERVICE_NAME, self.YOUTUBE_API_VERSION, developerKey=self.DEVELOPER_KEY)
         results = []
-        if(random):
+
+        if random:
             search_response = youtube.search().list(
                 q="",
                 part="id,snippet",
@@ -110,10 +122,12 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
                 type="video",
                 channelId=self.CHANNEL_ID
             ).execute()
+
             items = search_response.get("items", [])
             rand = randint(0, len(items)-1)
             search_result = items[rand]
             id_articolo = uuid4().hex
+
             if search_result["id"]["kind"] == "youtube#video":
                 results.append({'type': 'video',
                                  'id': id_articolo,
@@ -123,6 +137,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
                                  'description': search_result["snippet"]["description"],
                                  "thumb_url":   search_result["snippet"]["thumbnails"]["default"]["url"],
                                  "message_text": "www.youtube.it/watch?v=%s" % search_result["id"]["videoId"]})
+
         else:
             search_response = youtube.search().list(
                 q=query,
@@ -132,6 +147,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
                 type="video",
                 channelId=self.CHANNEL_ID
             ).execute()
+
             for search_result in search_response.get("items", []):
                 id_articolo = uuid4().hex
                 if search_result["id"]["kind"] == "youtube#video":
@@ -145,21 +161,26 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
                                      "message_text": "www.youtube.it/watch?v=%s" % search_result["id"]["videoId"]})
         return results
 
+
     def on_inline_query(self, msg):
         def compute_answer():
             query_id, from_id, telegramQuery = telepot.glance(msg, flavor='inline_query')
             id_referral = uuid4().hex
-            url = telegramQuery
             articles = []
             (success, messaggio, store) = self.getReferralLink(telegramQuery)
+
             if success:
                 articles.append({'type': 'article', 'id': id_referral, 'title': "Applica referral su "+store, 'message_text': messaggio})
             articles.extend(self.searchYoutube(telegramQuery, 5, False))
+
             return articles
         self.answerer.answer(msg, compute_answer)
 
-    def on_chosen_inline_result(self, msg):
-        result_id, from_id, query_string = telepot.glance(msg, flavor='chosen_inline_result', parse_mode = "html")
+
+    @staticmethod
+    def on_chosen_inline_result(msg):
+        # result_id, from_id, query_string = func
+        telepot.glance(msg, flavor='chosen_inline_result')
 
 
     def updateUserDatabase(self, id, firstName, lastName, username):
@@ -170,28 +191,29 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
 
 
 
-    async def check_referral(self, urls, msg):
+    async def check_referral(self, urls):
         new_urls = []
         for url in urls:
             if "amzn.to" in url or "bit.ly" in url or "goo.gl" in url:
                 richiesta = urllib.request.urlopen(url)
                 url = richiesta.geturl()
             if ("amazon" in url and "tag" in url and ("overvolt-21" not in url or "offervolt-21" not in url)) or ("banggood" in url and "p=" in url and self.BANGGOOD_REFERRAL not in url) or ("gearbest" in url and "lkid" in url and self.GEARBEST_REFERRAL not in url):
-                await self.sender.sendMessage("Cattivo bambino, non si usano i referral non di marco! Te li correggo io ")
+                await self.sender.sendMessage("Cattivo bambino, non si usano i referral che non sono di Marco! Te li correggo io")
             if "amazon" in url or "banggood" in url or "gearbest" in url:
                 new_urls.append(self.short(self.getReferralLink(url)[1]))
         return new_urls
 
 
     async def on_chat_message(self, msg):
-        id_referral = uuid4().hex
         if "text" in msg:
             splitted = msg["text"].split()
         else:
             return
+
         if splitted[0] == "/referral":
             (status,messaggio,store) = self.getReferralLink(" ".join(splitted[1:]))
             await self.sender.sendMessage(messaggio, parse_mode = "html")
+
         elif splitted[0] == "/youtube":
             results = self.searchYoutube(" ".join(splitted[1:]), 5, (len(splitted)<=1))
             if len(results)>0:
@@ -199,12 +221,18 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
             else:
                 messaggio = "Nessun risultato"
             await self.sender.sendMessage(messaggio, parse_mode = "html")
+
         elif splitted[0] == "/start":
             await self.sender.sendMessage("Comandi disponibili: \n - /referral [link]: applica il referral di OverVolt \n - /youtube [query]: ricerca tra i video di OverVolt", parse_mode = "html")
+
         elif splitted[0] == "/help":
             await self.sender.sendMessage("Ciao, sono il bot di overVolt :robot:! \n\n Per ora so: \n\n<b>Aggiungere un referral a un link</b>\nMandami un link di <b>Banggood</b> o <b>Gearbest</b> con il comando /referral &lt link &gt e io aggiungerò il referral! \n\n<b>Cercare su YouTube un video di overVolt</b>\nUsa il comando /youtube &lt stringa &gt per cercare su Youtube!", parse_mode = "html")
+
         elif msg['from']['id'] == msg['chat']['id']:
-            await self.sender.sendMessage(emoji.emojize('Non ho capito :pensive_face:\n\n Scrivi /help per sapere come funziono.'), parse_mode = "html")
+            # await self.sender.sendMessage(emoji.emojize('Non ho capito :pensive_face:\n\n Scrivi /help per sapere come funziono.'), parse_mode = "html")
+            (status, messaggio, store) = self.getReferralLink(" ".join(splitted[0]))
+            await self.sender.sendMessage(messaggio, parse_mode="html")
+
         if msg['chat']['id']<0:
             testo = msg["text"]
             userId = msg["from"]["id"]
@@ -221,28 +249,33 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
                 except KeyError:
                     from_username = ""
                 self.updateUserDatabase(userId, msg['from']['first_name'], from_lastName, from_username)
+
             if testo.split()[0] == "/parla":
                 if userId in [50967453, 368894926, 77080264]:
                     await self.sender.sendMessage(testo.replace("/parla", ""))
                 await editor.deleteMessage()
+
             else:
                 if len(urls)>0:
-                    new_urls = await self.check_referral(urls, msg)
+                    new_urls = await self.check_referral(urls)
                     print(new_urls)
                     if len(new_urls) > 0:
+                        nome = "Sconosciuto"
                         for i in range(0,len(new_urls)):
                             testo = testo.replace(urls[i], new_urls[i])
                             try:
                                 nome = msg["from"]["first_name"] +" "+ msg["from"]["last_name"]
-                            except:
+                            except KeyError:
                                 nome = msg["from"]["first_name"]
-                        await self.sender.sendMessage("[<b>Inviato da "+nome+"] </b>\n\n" + testo, parse_mode="html")
+                        await self.sender.sendMessage("</b>[Inviato da {0}]</b>\n\n{1}".format(nome, testo), parse_mode="HTML")
                         await editor.deleteMessage()
+
 
 my_dir = os.path.dirname(os.path.abspath(__file__))
 token_file = open(os.path.join(my_dir, "TOKEN"))
 TOKEN = token_file.read().strip()
 token_file.close()
+
 bot = telepot.aio.DelegatorBot(TOKEN, [
     pave_event_space()(
         per_inline_from_id(), create_open, OverVoltBot, timeout=1),
