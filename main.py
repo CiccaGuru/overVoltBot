@@ -267,12 +267,12 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
                                 nome = msg["from"]["first_name"] +" "+ msg["from"]["last_name"]
                             except KeyError:
                                 nome = msg["from"]["first_name"]
-                        await self.sender.sendMessage("</b>[Inviato da {0}]</b>\n\n{1}".format(nome, testo), parse_mode="HTML")
+                        await self.sender.sendMessage("<b>[Inviato da {0}]</b>\n\n{1}".format(nome, testo), parse_mode="HTML")
                         await editor.deleteMessage()
 
 
 my_dir = os.path.dirname(os.path.abspath(__file__))
-token_file = open(os.path.join(my_dir, "TOKEN"))
+token_file = open(os.path.join(my_dir, "TOKEN_TEST"))
 TOKEN = token_file.read().strip()
 token_file.close()
 
