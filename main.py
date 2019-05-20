@@ -144,7 +144,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
 
 
     def getReferralLink(self, url):
-        messaggio = '<i>Impossibile applicare il referral</i> su' + url
+        messaggio = '<i>Impossibile applicare il referral</i> su ' + url
         success = False
         store = ""
 
@@ -177,6 +177,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
         return success, messaggio, store
 
 
+
     async def check_referral(self, url):
 
         new_url = url
@@ -189,16 +190,28 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
             new_url = "http://" + new_url
 
         new_url = requests.Session().head(new_url, allow_redirects=True, timeout=10).url
-
+        print(new_url)
         if "amazon" in new_url or "banggood" in new_url or "gearbest" in new_url:
             if not any(x in new_url for x in self.ALLOWED_REFS):
-                print(new_url)
+
                 return self.short(self.getReferralLink(new_url)[1])
             else:
                 return False
         else:
             return False
 
+
+    async def handle_referral(self, msg):
+        urls = self.get_link(msg)
+        testo = msg["text"]
+        found = False
+        for url in urls:
+            new_url = await self.check_referral(url)
+            if new_url:
+                found = True
+                testo = testo.replace(url, new_url)
+
+        return testo
 
 
 
@@ -238,8 +251,9 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
             return
 
         if splitted[0] == "/referral":
-            (status,messaggio,store) = self.getReferralLink(" ".join(splitted[1:]))
-            await self.sender.sendMessage(messaggio, parse_mode = "html")
+            answer = await self.handle_referral(msg)
+            answer = answer.replace("/referral ", "")
+            await self.sender.sendMessage(answer, parse_mode = "html")
 
         elif splitted[0] == "/youtube":
             results = self.searchYoutube(" ".join(splitted[1:]), 5, (len(splitted)<=1))
@@ -256,7 +270,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
             await self.sender.sendMessage("Ciao, sono il bot di overVolt :robot:! \n\n Per ora so: \n\n<b>Aggiungere un referral a un link</b>\nMandami un link di <b>Banggood</b> o <b>Gearbest</b> con il comando /referral &lt link &gt e io aggiungerò il referral! \n\n<b>Cercare su YouTube un video di overVolt</b>\nUsa il comando /youtube &lt stringa &gt per cercare su Youtube!", parse_mode = "html")
 
         elif msg['from']['id'] == msg['chat']['id']:
-            (status, messaggio, store) = self.getReferralLink(" ".join(splitted[0]))
+            messaggio = await self.handle_referral(msg)
             await self.sender.sendMessage(messaggio, parse_mode="html")
 
         if msg['chat']['id']<0:
@@ -270,14 +284,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
                 await editor.deleteMessage()
 
             else:
-                urls = self.get_link(msg)
-                found = False
-                for url in urls:
-                    new_url = await self.check_referral(url)
-                    if new_url:
-                        found = True
-                        testo = testo.replace(url, new_url)
-
+                testo = self.handle_referral(msg)
                 try:
                     nome = msg["from"]["first_name"] +" "+ msg["from"]["last_name"]
                 except KeyError:
@@ -285,6 +292,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
                 if found:
                     await self.sender.sendMessage("<b>[Inviato da {0}]</b>\n\n{1}".format(nome, testo), parse_mode="HTML")
                     await editor.deleteMessage()
+
 
     def on_close(self, ex):
         """Close bot after timeout"""
