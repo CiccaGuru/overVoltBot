@@ -7,6 +7,7 @@ from apiclient.discovery import build
 from random import randint
 import requests
 
+
 class OverVoltBot(InlineUserHandler, AnswererMixin):
 
     def __init__(self, *args, **kwargs):
@@ -24,12 +25,14 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
         self.CHANNEL_ID = read_channel_id.read().strip()
 
         self.GEARBEST_REFERRAL = "12357131"
-        self.BANGGOOD_REFERRAL = "63091629786202015112&utm_campaign=overVolt&utm_content=suhaimin"
+        self.BANGGOOD_REFERRAL = "63091629786202015112&utm_campaign=overVolt&utm_content=liuyuwen"
         self.AMAZON_REFERRAL = "overvolt-21"
         self.ALLOWED_REFS = ["overvolt-21", "offervolt-21", "offervolt_f-21", "offervolt_n-21",
                                 "offervolt_s-21", "offervolt_k-21", "overvoltfr-21",
                                 "overvoltes-21", "overvoltde-21", "63091629786202015112",
                                 "12357131"]
+        self.botAdmins = [50967453, 368894926, 77080264]
+
 
     def searchYoutube(self, query, numResults, random):
         youtube = build(self.YOUTUBE_API_SERVICE_NAME, self.YOUTUBE_API_VERSION, developerKey=self.DEVELOPER_KEY)
@@ -83,6 +86,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
                                      "message_text": "www.youtube.it/watch?v=%s" % search_result["id"]["videoId"]})
         return results
 
+
     @staticmethod
     def get_link(msg):
         """Extract the link from a message"""
@@ -92,6 +96,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
             for link in raw_links:
                 links.append(msg["text"][link["offset"]:(link["offset"]+link["length"])].strip())
         return links
+
 
     @staticmethod
     def removeTag(url, tag):
@@ -177,28 +182,23 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
         return success, messaggio, store
 
 
-
     async def check_referral(self, url):
-
         new_url = url
 
         if any(x in url for x in ["m.amazon", "m.banggood", "m.gearbest",
                                    "m-it.gearbest", "m.tomtop", "m.ebay"]):
             new_url = url.replace("m.", "").replace("m-it.", "")
 
-        if "https://" not in new_url and "http://" not in new_url:
+        if not new_url.startswith('http'):
             new_url = "http://" + new_url
 
         new_url = requests.Session().head(new_url, allow_redirects=True, timeout=10).url
         print(new_url)
         if "amazon" in new_url or "banggood" in new_url or "gearbest" in new_url:
             if not any(x in new_url for x in self.ALLOWED_REFS):
-
                 return self.short(self.getReferralLink(new_url)[1])
-            else:
-                return False
-        else:
             return False
+        return False
 
 
     async def handle_referral(self, msg):
@@ -210,9 +210,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
             if new_url:
                 found = True
                 testo = testo.replace(url, new_url)
-
-        return testo
-
+        return testo, found
 
 
     def on_inline_query(self, msg):
@@ -232,16 +230,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
 
     @staticmethod
     def on_chosen_inline_result(msg):
-        # result_id, from_id, query_string = func
         telepot.glance(msg, flavor='chosen_inline_result')
-
-
-    def updateUserDatabase(self, id, firstName, lastName, username):
-        if self.db_users.search(where('chatId') == id):
-            self.db_users.update({'firstName': firstName, 'lastName': lastName, 'username': username, 'lastMsgDate': int(time.time())}, where('chatId') == id)
-        else:
-            self.db_users.insert({'chatId': id, 'firstName': firstName, 'lastName': lastName, 'username': username, 'warns': "0", 'lastMsgDate': int(time.time())})
-
 
 
     async def on_chat_message(self, msg):
@@ -251,7 +240,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
             return
 
         if splitted[0] == "/referral":
-            answer = await self.handle_referral(msg)
+            answer, found = await self.handle_referral(msg)
             answer = answer.replace("/referral ", "")
             await self.sender.sendMessage(answer, parse_mode = "html")
 
@@ -279,17 +268,14 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
             editor = Editor(self.bot, telepot.message_identifier(msg))
 
             if testo.split()[0] == "/parla":
-                if userId in [50967453, 368894926, 77080264]:
+                if userId in self.botAdmins:
                     await self.sender.sendMessage(testo.replace("/parla", ""))
                 await editor.deleteMessage()
 
             else:
-                testo = self.handle_referral(msg)
-                try:
-                    nome = msg["from"]["first_name"] +" "+ msg["from"]["last_name"]
-                except KeyError:
-                    nome = msg["from"]["first_name"]
+                testo, found = self.handle_referral(msg)
                 if found:
+                    nome = msg["from"]["first_name"]
                     await self.sender.sendMessage("<b>[Inviato da {0}]</b>\n\n{1}".format(nome, testo), parse_mode="HTML")
                     await editor.deleteMessage()
 
