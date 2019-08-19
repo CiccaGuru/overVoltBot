@@ -185,19 +185,15 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
     async def check_referral(self, url):
         new_url = url
 
-        if any(x in url for x in ["m.amazon", "m.banggood", "m.gearbest",
-                                   "m-it.gearbest", "m.tomtop", "m.ebay"]):
-            new_url = url.replace("m.", "").replace("m-it.", "")
-
-        if not new_url.startswith('http'):
+        if "https://" not in new_url and "http://" not in new_url:
             new_url = "http://" + new_url
+        new_url = new_url.replace("it.gearbest","gearbest")
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.76 Safari/537.36', "Upgrade-Insecure-Requests": "1","DNT": "1","Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8","Accept-Language": "it,en","Accept-Encoding": "gzip, deflate"}
+        new_url = requests.Session().head(new_url, timeout=10, headers=headers).url
 
-        new_url = requests.Session().head(new_url, allow_redirects=True, timeout=10).url
-        print(new_url)
-        if "amazon" in new_url or "banggood" in new_url or "gearbest" in new_url:
-            if not any(x in new_url for x in self.ALLOWED_REFS):
-                return self.short(self.getReferralLink(new_url)[1])
-            return False
+        if any(x in new_url for x in ["amazon", "banggood", "gearbest"]) and not any(x in new_url for x in self.ALLOWED_REFS):
+            new_url.replace("//gearbest", "//it.gearbest")
+            return self.short(self.getReferralLink(new_url)[1])
         return False
 
 
@@ -265,18 +261,28 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
         if msg['chat']['id']<0:
             testo = msg["text"]
             userId = msg["from"]["id"]
+
+            if "reply_to_message" in msg.keys():
+                reply_id = msg["reply_to_message"]["message_id"]
+            else:
+                reply_id = None
+
             editor = Editor(self.bot, telepot.message_identifier(msg))
 
             if testo.split()[0] == "/parla":
                 if userId in self.botAdmins:
-                    await self.sender.sendMessage(testo.replace("/parla", ""))
+                    await self.sender.sendMessage(testo.replace("/parla", ""), reply_to_message_id=reply_id)
                 await editor.deleteMessage()
 
             else:
-                testo, found = self.handle_referral(msg)
+                testo, found = await self.handle_referral(msg)
                 if found:
                     nome = msg["from"]["first_name"]
-                    await self.sender.sendMessage("<b>[Inviato da {0}]</b>\n\n{1}".format(nome, testo), parse_mode="HTML")
+                    try:
+                        nome += " " + msg["from"]["last_name"]
+                    except Exception as e:
+                        pass
+                    await self.sender.sendMessage("<b>[Inviato da</b> <a href='tg://user?id={0}'>{1}</a><b>]</b>\n\n{2}".format(userId, nome, testo), parse_mode="HTML", reply_to_message_id=reply_id)
                     await editor.deleteMessage()
 
 
@@ -285,7 +291,7 @@ class OverVoltBot(InlineUserHandler, AnswererMixin):
         pass
 
 my_dir = os.path.dirname(os.path.abspath(__file__))
-token_file = open(os.path.join(my_dir, "TOKEN"))
+token_file = open(os.path.join(my_dir, "TOKEN_TEST"))
 TOKEN = token_file.read().strip()
 token_file.close()
 
