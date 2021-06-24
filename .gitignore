@@ -1,6 +1,6 @@
-TOKEN
-TOKEN_TEST
-DEVELOPER_KEY
-CHANNEL_ID
-.htaccess
 .DS_Store
+modules/__pycache__/
+__pycache__/
+settings.json
+makersita.db
+export.json

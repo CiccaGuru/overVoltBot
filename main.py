@@ -1,308 +1,269 @@
-import os, asyncio, telepot, emoji, re, json, urllib.request, time
-from telepot.aio.loop import MessageLoop
-from telepot.aio.helper import InlineUserHandler, AnswererMixin, Editor
-from telepot.aio.delegate import per_inline_from_id, create_open, pave_event_space, per_chat_id
-from uuid import uuid4
-from apiclient.discovery import build
-from random import randint
-import requests
+from telepotpro import Bot
+from telepotpro.exception import *
+from pony.orm import db_session, select
+from os.path import abspath, dirname, join
+from json import load as jsload
+from time import sleep
+from threading import Thread
+from datetime import datetime
+
+from modules.apiHelpers import ApiHelpers
+from modules.database import User, Message
+from modules import keyboards, dbQuery
+
+with open(join(dirname(abspath(__file__)), "settings.json")) as settings_file:
+    js_settings = jsload(settings_file)
+
+bot = Bot(js_settings["token"])
+helpers = ApiHelpers(js_settings)
+forwardChannel = js_settings["forwardChannel"]
+makersita = -1001108947027
 
 
-class OverVoltBot(InlineUserHandler, AnswererMixin):
-
-    def __init__(self, *args, **kwargs):
-        super(OverVoltBot, self).__init__(*args, **kwargs)
-        self.count = 0
-
-        my_dir = os.path.dirname(os.path.abspath(__file__))
-        read_dev_key = open(os.path.join(my_dir, "DEVELOPER_KEY"))
-        self.DEVELOPER_KEY = read_dev_key.read().strip()
-        read_dev_key.close()
-
-        self.YOUTUBE_API_SERVICE_NAME = "youtube"
-        self.YOUTUBE_API_VERSION = "v3"
-        read_channel_id = open(os.path.join(my_dir, "CHANNEL_ID"))
-        self.CHANNEL_ID = read_channel_id.read().strip()
-
-        self.GEARBEST_REFERRAL = "12357131"
-        self.BANGGOOD_REFERRAL = "63091629786202015112&utm_campaign=overVolt&utm_content=liuyuwen"
-        self.AMAZON_REFERRAL = "overvolt-21"
-        self.ALLOWED_REFS = ["overvolt-21", "offervolt-21", "offervolt_f-21", "offervolt_n-21",
-                                "offervolt_s-21", "offervolt_k-21", "overvoltfr-21",
-                                "overvoltes-21", "overvoltde-21", "63091629786202015112",
-                                "12357131"]
-        self.botAdmins = [50967453, 368894926, 77080264]
+@db_session
+def getUserString(user, forceName: bool=False):
+    if user.username != "" and not forceName:
+        return f"@{user.username}"
+    fullname = " ".join((user.firstName, user.lastName))
+    return f"<a href=\"tg://user?id={user.chatId}\">{fullname}</a>"
 
 
-    def searchYoutube(self, query, numResults, random):
-        youtube = build(self.YOUTUBE_API_SERVICE_NAME, self.YOUTUBE_API_VERSION, developerKey=self.DEVELOPER_KEY)
-        results = []
+def getPosChar(n: int):
+    chars = {
+        1: "🥇", 2: "🥈", 3: "🥉",
+        4: "4️⃣", 5: "5️⃣", 6: "6️⃣", 7: "7️⃣", 8: "8️⃣", 9: "9️⃣", 10: "🔟",
+        "def": "-"
+    }
+    return chars.get(n, f"{n}.")
 
-        if random:
-            search_response = youtube.search().list(
-                q="",
-                part="id,snippet",
-                maxResults=20,
-                order="viewCount",
-                type="video",
-                channelId=self.CHANNEL_ID
-            ).execute()
 
-            items = search_response.get("items", [])
-            rand = randint(0, len(items)-1)
-            search_result = items[rand]
-            id_articolo = uuid4().hex
+@db_session
+def updateDB(msg, userOnly: bool=False):
+    if not User.exists(lambda u: u.chatId == msg["from"]["id"]):
+        dbuser = User(
+            chatId=msg["from"]["id"],
+            firstName=msg["from"].get("first_name", "Unknown"),
+            lastName=msg["from"].get("last_name", ""),
+            username=msg["from"].get("username", "")
+        )
+    else:
+        dbuser = User.get(chatId=msg["from"]["id"])
+        dbuser.firstName = msg["from"].get("first_name", "Unknown")
+        dbuser.lastName = msg["from"].get("last_name", "")
+        dbuser.username = msg["from"].get("username", "")
 
-            if search_result["id"]["kind"] == "youtube#video":
-                results.append({'type': 'video',
-                                 'id': id_articolo,
-                                 'video_url': "www.youtube.it/watch?v=%s" % search_result["id"]["videoId"],
-                                 "mime_type": "text/html",
-                                 'title': search_result["snippet"]["title"],
-                                 'description': search_result["snippet"]["description"],
-                                 "thumb_url":   search_result["snippet"]["thumbnails"]["default"]["url"],
-                                 "message_text": "www.youtube.it/watch?v=%s" % search_result["id"]["videoId"]})
-
+    dbmsg = None
+    if not userOnly:
+        if not Message.exists(lambda m: m.chatId == msg["chat"]["id"] and m.msgId == msg["message_id"]):
+            dbmsg = Message(
+                user=dbuser,
+                text=msg.get("text", ""),
+                date=msg["date"],
+                chatId=msg["chat"]["id"],
+                msgId=msg["message_id"]
+            )
         else:
-            search_response = youtube.search().list(
-                q=query,
-                part="id,snippet",
-                maxResults=numResults,
-                order="relevance",
-                type="video",
-                channelId=self.CHANNEL_ID
-            ).execute()
+            if msg.get("edit_date"):
+                dbmsg = Message.get(chatId=msg["chat"]["id"], msgId=msg["message_id"])
+                dbmsg.text = msg.get("text", "")
+                dbmsg.date = msg["edit_date"]
+                dbmsg.edited = True
 
-            for search_result in search_response.get("items", []):
-                id_articolo = uuid4().hex
-                if search_result["id"]["kind"] == "youtube#video":
-                    results.append({'type': 'video',
-                                     'id': id_articolo,
-                                     'video_url': "www.youtube.it/watch?v=%s" % search_result["id"]["videoId"],
-                                     "mime_type": "text/html",
-                                     'title': search_result["snippet"]["title"],
-                                     'description': search_result["snippet"]["description"],
-                                     "thumb_url":   search_result["snippet"]["thumbnails"]["default"]["url"],
-                                     "message_text": "www.youtube.it/watch?v=%s" % search_result["id"]["videoId"]})
-        return results
+    return dbuser, dbmsg
 
 
-    @staticmethod
-    def get_link(msg):
-        """Extract the link from a message"""
-        links = []
-        if "entities" in msg:
-            raw_links = [x for x in msg["entities"] if x["type"] == "url"]
-            for link in raw_links:
-                links.append(msg["text"][link["offset"]:(link["offset"]+link["length"])].strip())
-        return links
+@db_session
+def makersFunctions(msg):
+    if msg["chat"]["id"] != makersita:
+        return
+
+    if msg.get("new_chat_members"):
+        for user in msg["new_chat_members"]:
+            newJson = {"from": user}
+            updateDB(newJson, userOnly=True)
+    
+    elif msg.get("from"):
+        updateDB(msg)
 
 
-    @staticmethod
-    def removeTag(url, tag):
-        """Remove affiliation tags from urls"""
-        length = len(url)
-        tag_index = url.find(tag + "=")
-
-        while tag_index > 0:
-            next_parameter_index = url[tag_index:].find("&")
-            if (next_parameter_index + tag_index + 1 >= length) \
-                    or (next_parameter_index < 0):
-                url = url[:(tag_index - 1)]
-            else:
-                if url[tag_index - 1] != "&":
-                    url = url[:tag_index] + \
-                        url[(next_parameter_index + tag_index + 1):]
-                else:
-                    url = url[:(tag_index - 1)] + \
-                        url[(next_parameter_index + tag_index):]
-            length = len(url)
-            tag_index = url.find(tag + "=")
-        return url
-
-
-    @staticmethod
-    def short(long_url):
-        """Shorten urls"""
-        import json
-        import urllib.request
-        import urllib.parse
-
-        if "https://" not in long_url and "http://" not in long_url:
-            escaped = "http://" + long_url
-        else:
-            escaped = long_url
-
-        escaped = urllib.parse.quote(escaped, safe="")
-        bitly_api = r"https://api-ssl.bitly.com/v3/shorten" \
-            r"?access_token=e8de1a5482420f3dbd0790fdffa93ba6e415d7f9&longUrl" \
-            r"={}".format(escaped)
-
+@db_session
+def runDatabaseUpdate(sender: int=None):
+    for user in select(u for u in User):
         try:
-            with urllib.request.urlopen(bitly_api) as request:
-                data = json.loads(request.read().decode())
-                data = data['data']['url']
-                data = data.replace("https://", "").replace("http://", "")
-        except (KeyError, TypeError):
-            data = long_url
-        return data
+            userInfo = bot.getChatMember(makersita, user.chatId)
+            user.firstName = userInfo["user"].get("first_name", "Unknown")
+            user.lastName = userInfo["user"].get("last_name", "")
+            user.username = userInfo["user"].get("username", "")
+            user.lastStatus = userInfo.get("status", "")
+        except TelegramError:
+            pass
+        sleep(0.5)
+    if sender is not None:
+        try:
+            bot.sendMessage(sender, "✅ Aggiornamento database finito!")
+        except (TelegramError, BotWasBlockedError):
+            bot.sendMessage(makersita, "✅ Aggiornamento database finito!")
 
 
-    def getReferralLink(self, url):
-        messaggio = '<i>Impossibile applicare il referral</i> su ' + url
-        success = False
-        store = ""
+@db_session
+def reply(msg):
+    makersFunctions(msg)
 
-        if "amazon.it" in url:
-            url = self.removeTag(url, "ref")
-            url = self.removeTag(url, "linkId")
-            url = self.removeTag(url, "tag")
-            separator = url.find("?")>0 and  "&" or "?"
-            messaggio = self.short("{0}{1}tag={2}".format(url, separator, self.AMAZON_REFERRAL))
-            success = True
-            store = "Amazon"
+    chatId = msg["chat"]["id"]
+    userId = msg["from"]["id"]
+    userName = msg["from"]["first_name"]
+    msgId = msg["message_id"]
+    text = msg.get("text")
 
-        elif "banggood.com" in url:
-            url = self.removeTag(url, "p")
-            url = self.removeTag(url, "utm_campaign")
-            url = self.removeTag(url, "utm_content")
-            separator = url.find("?")>0 and  "&" or "?"
-            messaggio = self.short("{0}{1}p={2}".format(url, separator, self.BANGGOOD_REFERRAL))
-            success = True
-            store = "Banggood"
+    if chatId == makersita:
+        if text == "/updateDatabase" and (userId in js_settings["admins"]):
+            bot.sendMessage(chatId, "🕙 Aggiorno il database...\n"
+                                    "<i>Potrebbe volerci molto tempo, continuo in background.\n"
+                                    "Controlla la chat privata per aggiornamenti!</i>",
+                            parse_mode="HTML")
+            Thread(target=runDatabaseUpdate, args=[userId], name="databaseUpdater").start()
 
-        elif "gearbest.com" in url:
-            url = self.removeTag(url, "lkid")
-            url = self.removeTag(url, "eo")
-            separator = url.find("?")>0 and  "&" or "?"
-            messaggio = self.short("{0}{1}lkid={2}".format(url, separator, self.GEARBEST_REFERRAL))
-            success = True
-            store = "Gearbest"
+    if text is None:
+        if chatId > 0:
+            bot.sendMessage(chatId, "Non ho capito... /help")
+        return
 
-        return success, messaggio, store
+    ## ANY CHAT
+    if text.startswith("/segnala "):
+        try:
+            link = helpers.get_link(msg)[0]
+            if link:
+                shorted = helpers.short(link)
+                keyboard = None
+                if any(w in shorted for w in ["bit.ly/", "amzn.to/"]):
+                    linkId = shorted.split("/")[-1]
+                    domain = "amznto" if "amzn.to" in shorted else "bitly"
+                    keyboard = keyboards.prenota(domain, linkId)
+                bot.sendMessage(forwardChannel, "<b>Nuova offerta segnalata!</b>\n"
+                                                "<i>Da:</i> <a href=\"tg://user?id={}\">{}</a>\n\n"
+                                                "{}".format(userId, userName, shorted),
+                                parse_mode="HTML", disable_web_page_preview=True, reply_markup=keyboard)
+                bot.sendMessage(chatId, "Grazie per la segnalazione, <b>{}</b>!".format(userName),
+                                parse_mode="HTML")
+
+        except Exception:
+            bot.sendMessage(chatId, "<i>Non sono riuscito a segnalare l'offerta.</i>",
+                            parse_mode="HTML", reply_to_message_id=msgId)
+            raise
+
+    elif text.lower().startswith("/topmessages") and (userId in js_settings["admins"]):
+        n = int(text.split(" ")[1]) if len(text.split()) > 1 else 10
+        lista = dbQuery.topMessages(n)
+        message = f"📝 <b>TOP {n} messaggi MakersITA</b>\n"
+        for i in range(len(lista)):
+            user, nmsg = lista[i]
+            pos = getPosChar(i + 1)
+            message += f"\n{pos} {getUserString(user)}: {nmsg}"
+        helpers.sendLongMessage(bot, chatId, message, parse_mode="HTML")
+
+    elif text.lower().startswith("/topcpm") and (userId in js_settings["admins"]):
+        n = int(text.split(" ")[1]) if len(text.split()) > 1 else 10
+        minmsg = int(text.split(" ")[2]) if len(text.split()) > 2 else 30
+        lista = dbQuery.topCharsPerMessage(n, minmsg)
+        message = f"📝 <b>TOP {n} caratteri/messaggio MakersITA</b>\n" \
+                  f"<i>Min. messaggi necessari: {minmsg}</i>\n"
+        for i in range(len(lista)):
+            user, cpm = lista[i]
+            pos = getPosChar(i + 1)
+            message += f"\n{pos} {getUserString(user)}: {cpm:.1f}"
+        helpers.sendLongMessage(bot, chatId, message, parse_mode="HTML")
+
+    elif text.lower().startswith("/membriinattivi") and (userId in js_settings["admins"]):
+        n = int(text.split(" ")[1]) if len(text.split()) > 1 else 90
+        lista = dbQuery.inactiveFor(n)
+        message = f"👥 <b>Membri inattivi da {n} giorni:</b>\n"
+        for user, days in lista:
+            message += f"\n{getUserString(user)}: {days}"
+        helpers.sendLongMessage(bot, chatId, message, parse_mode="HTML")
+
+    elif text.lower().startswith("/topedit") and (userId in js_settings["admins"]):
+        n = int(text.split(" ")[1]) if len(text.split()) > 1 else 10
+        minmsg = int(text.split(" ")[2]) if len(text.split()) > 2 else 30
+        lista = dbQuery.topEditRatio(n, minmsg)
+        message = f"✏️ <b>TOP {n} edit ratio MakersITA</b>\n" \
+                  f"<i>messaggi editati/messaggi totali (min. messaggi necessari: {minmsg})</i>\n"
+        for i in range(len(lista)):
+            user, ratio = lista[i]
+            pos = getPosChar(i + 1)
+            ratio *= 100
+            message += f"\n{pos} {getUserString(user)}: {ratio:.2f}%"
+        helpers.sendLongMessage(bot, chatId, message, parse_mode="HTML")
+
+    elif text.lower().startswith("/topflood") and (userId in js_settings["admins"]):
+        n = int(text.split(" ")[1]) if len(text.split()) > 1 else 10
+        minmsg = int(text.split(" ")[2]) if len(text.split()) > 2 else 30
+        lista = dbQuery.topFloodRatio(n, minmsg)
+        message = f"✏️ <b>TOP {n} flood ratio MakersITA</b>\n" \
+                  f"<i>doppi messaggi/messaggi totali (min. messaggi necessari: {minmsg})</i>\n"
+        for i in range(len(lista)):
+            user, ratio = lista[i]
+            pos = getPosChar(i + 1)
+            ratio *= 100
+            message += f"\n{pos} {getUserString(user)}: {ratio:.2f}%"
+        helpers.sendLongMessage(bot, chatId, message, parse_mode="HTML")
 
 
-    async def check_referral(self, url):
-        new_url = url
+    ## PRIVATE CHAT
+    if chatId > 0:
+        if text == "/start":
+            bot.sendMessage(chatId, "Ciao, sono il bot di overVolt!", parse_mode="html")
 
-        if "https://" not in new_url and "http://" not in new_url:
-            new_url = "http://" + new_url
-        new_url = new_url.replace("it.gearbest","gearbest")
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.76 Safari/537.36', "Upgrade-Insecure-Requests": "1","DNT": "1","Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8","Accept-Language": "it,en","Accept-Encoding": "gzip, deflate"}
-        new_url = requests.Session().head(new_url, timeout=10, headers=headers).url
+        elif text == "/help":
+            bot.sendMessage(chatId, "Ciao, sono il bot di overVolt!\n\n"
+                "Il bot è stato riscritto da zero, molti comandi non funzionano e sono stati deprecati.",
+                parse_mode="html")
 
-        if any(x in new_url for x in ["amazon", "banggood", "gearbest"]) and not any(x in new_url for x in self.ALLOWED_REFS):
-            new_url.replace("//gearbest", "//it.gearbest")
-            return self.short(self.getReferralLink(new_url)[1])
-        return False
-
-
-    async def handle_referral(self, msg):
-        urls = self.get_link(msg)
-        testo = msg["text"]
-        found = False
-        for url in urls:
-            new_url = await self.check_referral(url)
-            if new_url:
-                found = True
-                testo = testo.replace(url, new_url)
-        return testo, found
-
-
-    def on_inline_query(self, msg):
-        def compute_answer():
-            query_id, from_id, telegramQuery = telepot.glance(msg, flavor='inline_query')
-            id_referral = uuid4().hex
-            articles = []
-            (success, messaggio, store) = self.getReferralLink(telegramQuery)
-
-            if success:
-                articles.append({'type': 'article', 'id': id_referral, 'title': "Applica referral su "+store, 'message_text': messaggio})
-            articles.extend(self.searchYoutube(telegramQuery, 5, False))
-
-            return articles
-        self.answerer.answer(msg, compute_answer)
-
-
-    @staticmethod
-    def on_chosen_inline_result(msg):
-        telepot.glance(msg, flavor='chosen_inline_result')
-
-
-    async def on_chat_message(self, msg):
-        if "text" in msg:
-            splitted = msg["text"].split()
-        else:
-            return
-
-        if splitted[0] == "/referral":
-            answer, found = await self.handle_referral(msg)
+        elif text == "/referral":
+            answer, found = helpers.handle_referral(msg)
             answer = answer.replace("/referral ", "")
-            await self.sender.sendMessage(answer, parse_mode = "html")
-
-        elif splitted[0] == "/youtube":
-            results = self.searchYoutube(" ".join(splitted[1:]), 5, (len(splitted)<=1))
-            if len(results)>0:
-                messaggio = results[0]["message_text"]
-            else:
-                messaggio = "Nessun risultato"
-            await self.sender.sendMessage(messaggio, parse_mode = "html")
-
-        elif splitted[0] == "/start":
-            await self.sender.sendMessage("Comandi disponibili: \n - /referral [link]: applica il referral di OverVolt \n - /youtube [query]: ricerca tra i video di OverVolt", parse_mode = "html")
-
-        elif splitted[0] == "/help":
-            await self.sender.sendMessage("Ciao, sono il bot di overVolt :robot:! \n\n Per ora so: \n\n<b>Aggiungere un referral a un link</b>\nMandami un link di <b>Banggood</b> o <b>Gearbest</b> con il comando /referral &lt link &gt e io aggiungerò il referral! \n\n<b>Cercare su YouTube un video di overVolt</b>\nUsa il comando /youtube &lt stringa &gt per cercare su Youtube!", parse_mode = "html")
-
-        elif msg['from']['id'] == msg['chat']['id']:
-            messaggio = await self.handle_referral(msg)
-            await self.sender.sendMessage(messaggio, parse_mode="html")
-
-        if msg['chat']['id']<0:
-            testo = msg["text"]
-            userId = msg["from"]["id"]
-
-            if "reply_to_message" in msg.keys():
-                reply_id = msg["reply_to_message"]["message_id"]
-            else:
-                reply_id = None
-
-            editor = Editor(self.bot, telepot.message_identifier(msg))
-
-            if testo.split()[0] == "/parla":
-                if userId in self.botAdmins:
-                    await self.sender.sendMessage(testo.replace("/parla", ""), reply_to_message_id=reply_id)
-                await editor.deleteMessage()
-
-            else:
-                testo, found = await self.handle_referral(msg)
-                if found:
-                    nome = msg["from"]["first_name"]
-                    try:
-                        nome += " " + msg["from"]["last_name"]
-                    except Exception as e:
-                        pass
-                    await self.sender.sendMessage("<b>[Inviato da</b> <a href='tg://user?id={0}'>{1}</a><b>]</b>\n\n{2}".format(userId, nome, testo), parse_mode="HTML", reply_to_message_id=reply_id)
-                    await editor.deleteMessage()
+            bot.sendMessage(chatId, answer, parse_mode="html")
 
 
-    def on_close(self, ex):
-        """Close bot after timeout"""
-        pass
+    ## GROUPS / CHANNELS
+    elif chatId < 0:
+        isReply = "reply_to_message" in msg.keys()
+        replyId = None if not isReply else msg["reply_to_message"]["message_id"]
 
-my_dir = os.path.dirname(os.path.abspath(__file__))
-token_file = open(os.path.join(my_dir, "TOKEN"))
-TOKEN = token_file.read().strip()
-token_file.close()
+        if text.startswith("/parla ") and (userId in js_settings["admins"]):
+            bot.sendMessage(chatId, text.split(" ", 1)[1], parse_mode="HTML", reply_to_message_id=replyId)
+            bot.deleteMessage((chatId, msgId))
 
-bot = telepot.aio.DelegatorBot(TOKEN, [
-    pave_event_space()(
-        per_inline_from_id(), create_open, OverVoltBot, timeout=1),
-     pave_event_space()(
-         per_chat_id(), create_open, OverVoltBot, timeout=1),
-])
+        else:
+            testo, found = helpers.handle_referral(msg)
+            if found:
+                nome = msg["from"]["first_name"]
+                if "last_name" in msg["from"].keys():
+                    nome += " " + msg["from"]["last_name"]
+                bot.sendMessage(chatId,
+                    "<b>[Link inviato da</b> <a href=\"tg://user?id={0}\">{1}</a><b>]</b>\n\n{2}".format(userId, nome, testo),
+                    parse_mode="HTML", reply_to_message_id=replyId, disable_web_page_preview=True)
+                bot.deleteMessage((chatId, msgId))
 
-loop = asyncio.get_event_loop()
 
-loop.create_task(MessageLoop(bot).run_forever())
-loop.run_forever()
+def button(msg):
+    chatId = msg["message"]["chat"]["id"]
+    userName = msg["from"]["first_name"]
+    msgId = msg["message"]["message_id"]
+    data = msg["data"]
+    command = data.split("#")[0]
+    params = data.split("#")[1:]
+
+    if command == "prenotaLink":
+        domain, linkId = params
+        msgText = msg["message"]["text"]
+        newText = msgText.replace("Nuova offerta segnalata!", "<b>[Prenotata da {}]</b>".format(userName))
+        bot.editMessageText((chatId, msgId), newText, parse_mode="HTML", disable_web_page_preview=True,
+                            reply_markup=keyboards.open_scontino(domain, linkId))
+
+
+bot.message_loop({'chat': reply, 'callback_query': button})
+while True:
+    sleep(60)
+    clock = datetime.now().strftime("%H:%M")
+    if clock == "02:00":
+        Thread(target=runDatabaseUpdate, name="databaseUpdater").start()
