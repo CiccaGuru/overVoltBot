@@ -206,7 +206,7 @@ def reply(msg):
         for i in range(len(lista)):
             user, ratio = lista[i]
             pos = getPosChar(i + 1)
-            message += f"\n{pos} {getUserString(user)}: {ratio}"
+            message += f"\n{pos} {getUserString(user)}: {ratio:.1f}"
         helpers.sendLongMessage(bot, chatId, message, parse_mode="HTML")
 
     elif text.lower().startswith("/topgiorni") and (userId in js_settings["admins"]):
@@ -267,7 +267,7 @@ def reply(msg):
                             f"📝 Media CPM: <b>{userCPM:.1f}</b>\n"
                             f"✏️ Edit ratio: <b>{userERatio:.2f}%</b>\n"
                             f"📄 Flood ratio: <b>{userFRatio:.2f}%</b>\n"
-                            f"📝 Media MPD: <b>{userMPD}</b>\n"
+                            f"📝 Media MPD: <b>{userMPD:.1f}</b>\n"
                             f"📅 Membro da: <b>{userDays} giorni</b>\n"
                             f"\n"
                             f"ℹ️ <b>Info dati</b>\n"
