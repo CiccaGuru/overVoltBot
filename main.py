@@ -236,8 +236,9 @@ def reply(msg):
             bot.sendMessage(chatId, answer, parse_mode="html")
 
         elif text.startswith("/start mystats"):
+            sent = bot.sendMessage(chatId, "Carico i dati...")
             rUser = User.get(chatId=userId)
-            bot.sendMessage(chatId,
+            bot.editMessageText((chatId, sent["message_id"]),
                             f"📊 <b>STATISTICHE UTENTE:</b> {getUserString(rUser)}\n"
                             f"\n"
                             f"📝 Messaggi inviati: <b>{dbQuery.messagesCount(rUser)}</b>\n"
