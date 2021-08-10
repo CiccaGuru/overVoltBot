@@ -235,6 +235,24 @@ def reply(msg):
             answer = answer.replace("/referral ", "")
             bot.sendMessage(chatId, answer, parse_mode="html")
 
+        elif text.startswith("/start mystats"):
+            rUser = User.get(chatId=userId)
+            bot.sendMessage(chatId,
+                            f"📊 <b>STATISTICHE UTENTE:</b> {getUserString(rUser)}\n"
+                            f"\n"
+                            f"📝 Messaggi inviati: <b>{dbQuery.messagesCount(rUser)}</b>\n"
+                            f"📝 Media CPM: <b>{dbQuery.charsPerMessage(rUser):.1f}</b>\n"
+                            f"✏️ Edit ratio: <b>{dbQuery.editRatio(rUser):.2f}%</b>\n"
+                            f"📄 Flood ratio: <b>{dbQuery.floodRatio(rUser):.2f}%</b>\n"
+                            f"📝 Media MPD: <b>{dbQuery.messagesPerDay(rUser):.1f}</b>\n"
+                            f"📅 Membro da: <b>{dbQuery.membershipDays(rUser)} giorni</b>\n"
+                            f"\n"
+                            f"ℹ️ <b>Info dati</b>\n"
+                            f"- CPM: media caratteri per messaggio\n"
+                            f"- Edit ratio: la percentuale di messaggi editati su quelli inviati\n"
+                            f"- Flood ratio: la percentuale di messaggi consecutivi (uno dopo l'altro) rispetto al totale\n"
+                            f"- MPD: media messaggi al giorno", parse_mode="HTML")
+
 
     ## MAKERSITA
     elif chatId == makersita:
@@ -254,21 +272,15 @@ def reply(msg):
 
         elif text == "/userstats" and isReply and (userId in js_settings["admins"]):
             rUser = User.get(chatId=msg["reply_to_message"]["from"]["id"])
-            userMess = dbQuery.messagesCount(rUser)
-            userCPM = dbQuery.charsPerMessage(rUser)
-            userERatio = dbQuery.editRatio(rUser)
-            userFRatio = dbQuery.floodRatio(rUser)
-            userMPD = dbQuery.messagesPerDay(rUser)
-            userDays = dbQuery.membershipDays(rUser)
             bot.sendMessage(chatId,
-                            "📊 <b>STATISTICHE UTENTE</b>\n"
-                            "\n"
-                            f"📝 Messaggi inviati: <b>{userMess}</b>\n"
-                            f"📝 Media CPM: <b>{userCPM:.1f}</b>\n"
-                            f"✏️ Edit ratio: <b>{userERatio:.2f}%</b>\n"
-                            f"📄 Flood ratio: <b>{userFRatio:.2f}%</b>\n"
-                            f"📝 Media MPD: <b>{userMPD:.1f}</b>\n"
-                            f"📅 Membro da: <b>{userDays} giorni</b>\n"
+                            f"📊 <b>STATISTICHE UTENTE</b>\n"
+                            f"\n"
+                            f"📝 Messaggi inviati: <b>{dbQuery.messagesCount(rUser)}</b>\n"
+                            f"📝 Media CPM: <b>{dbQuery.charsPerMessage(rUser):.1f}</b>\n"
+                            f"✏️ Edit ratio: <b>{dbQuery.editRatio(rUser):.2f}%</b>\n"
+                            f"📄 Flood ratio: <b>{dbQuery.floodRatio(rUser):.2f}%</b>\n"
+                            f"📝 Media MPD: <b>{dbQuery.messagesPerDay(rUser):.1f}</b>\n"
+                            f"📅 Membro da: <b>{dbQuery.membershipDays(rUser)} giorni</b>\n"
                             f"\n"
                             f"ℹ️ <b>Info dati</b>\n"
                             f"- CPM: media caratteri per messaggio\n"
@@ -276,6 +288,12 @@ def reply(msg):
                             f"- Flood ratio: la percentuale di messaggi consecutivi (uno dopo l'altro) rispetto al totale\n"
                             f"- MPD: media messaggi al giorno",
                             parse_mode="HTML", reply_to_message_id=replyId)
+
+        elif text == "/mystats":
+            user = User.get(chatId=userId)
+            bot.sendMessage(chatId, "{}, <a href=\"https://t.me/overVoltBot?start=mystats_{}\">"
+                                    "Clicca qui per vedere le tue statistiche</a>"
+                                    "".format(getUserString(user), userId), parse_mode="HTML")
 
         else:
             testo, found = helpers.handle_referral(msg)
