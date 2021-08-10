@@ -115,14 +115,6 @@ def reply(msg):
     msgId = msg["message_id"]
     text = msg.get("text")
 
-    if chatId == makersita:
-        if text == "/updateDatabase" and (userId in js_settings["admins"]):
-            bot.sendMessage(chatId, "🕙 Aggiorno il database...\n"
-                                    "<i>Potrebbe volerci molto tempo, continuo in background.\n"
-                                    "Controlla la chat privata per aggiornamenti!</i>",
-                            parse_mode="HTML")
-            Thread(target=runDatabaseUpdate, args=[userId], name="databaseUpdater").start()
-
     if text is None:
         if chatId > 0:
             bot.sendMessage(chatId, "Non ho capito... /help")
@@ -198,13 +190,33 @@ def reply(msg):
         n = int(text.split(" ")[1]) if len(text.split()) > 1 else 10
         minmsg = int(text.split(" ")[2]) if len(text.split()) > 2 else 30
         lista = dbQuery.topFloodRatio(n, minmsg)
-        message = f"✏️ <b>TOP {n} flood ratio MakersITA</b>\n" \
+        message = f"📄 <b>TOP {n} flood ratio MakersITA</b>\n" \
                   f"<i>doppi messaggi/messaggi totali (min. messaggi necessari: {minmsg})</i>\n"
         for i in range(len(lista)):
             user, ratio = lista[i]
             pos = getPosChar(i + 1)
             ratio *= 100
             message += f"\n{pos} {getUserString(user)}: {ratio:.2f}%"
+        helpers.sendLongMessage(bot, chatId, message, parse_mode="HTML")
+
+    elif text.lower().startswith("/topmpd") and (userId in js_settings["admins"]):
+        n = int(text.split(" ")[1]) if len(text.split()) > 1 else 10
+        lista = dbQuery.topMessages(n)
+        message = f"📝 <b>TOP {n} messaggi/giorno MakersITA</b>\n"
+        for i in range(len(lista)):
+            user, ratio = lista[i]
+            pos = getPosChar(i + 1)
+            message += f"\n{pos} {getUserString(user)}: {ratio}"
+        helpers.sendLongMessage(bot, chatId, message, parse_mode="HTML")
+
+    elif text.lower().startswith("/topgiorni") and (userId in js_settings["admins"]):
+        n = int(text.split(" ")[1]) if len(text.split()) > 1 else 10
+        lista = dbQuery.topMessages(n)
+        message = f"📅 <b>TOP {n} giorni di attività MakersITA</b>\n"
+        for i in range(len(lista)):
+            user, days = lista[i]
+            pos = getPosChar(i + 1)
+            message += f"\n{pos} {getUserString(user)}: {days}"
         helpers.sendLongMessage(bot, chatId, message, parse_mode="HTML")
 
 
@@ -224,18 +236,50 @@ def reply(msg):
             bot.sendMessage(chatId, answer, parse_mode="html")
 
 
-    ## GROUPS / CHANNELS
-    elif chatId < 0:
+    ## MAKERSITA
+    elif chatId == makersita:
         isReply = "reply_to_message" in msg.keys()
         replyId = None if not isReply else msg["reply_to_message"]["message_id"]
 
-        if text.startswith("/parla ") and (userId in js_settings["admins"]):
+        if text == "/updateDatabase" and (userId in js_settings["admins"]):
+            bot.sendMessage(chatId, "🕙 Aggiorno il database...\n"
+                                    "<i>Potrebbe volerci molto tempo, continuo in background.\n"
+                                    "Controlla la chat privata per aggiornamenti!</i>",
+                            parse_mode="HTML")
+            Thread(target=runDatabaseUpdate, args=[userId], name="databaseUpdater").start()
+
+        elif text.startswith("/parla ") and (userId in js_settings["admins"]):
             bot.sendMessage(chatId, text.split(" ", 1)[1], parse_mode="HTML", reply_to_message_id=replyId)
             bot.deleteMessage((chatId, msgId))
 
+        elif text == "/userstats" and isReply and (userId in js_settings["admins"]):
+            rUser = User.get(chatId=msg["reply_to_message"]["from"]["id"])
+            userMess = dbQuery.messagesCount(rUser)
+            userCPM = dbQuery.charsPerMessage(rUser)
+            userERatio = dbQuery.editRatio(rUser)
+            userFRatio = dbQuery.floodRatio(rUser)
+            userMPD = dbQuery.messagesPerDay(rUser)
+            userDays = dbQuery.membershipDays(rUser)
+            bot.sendMessage(chatId,
+                            "📊 <b>STATISTICHE UTENTE</b>\n"
+                            "\n"
+                            f"📝 Messaggi inviati: <b>{userMess}</b>\n"
+                            f"📝 Media CPM: <b>{userCPM:.1f}</b>\n"
+                            f"✏️ Edit ratio: <b>{userERatio:.2f}%</b>\n"
+                            f"📄 Flood ratio: <b>{userFRatio:.2f}%</b>\n"
+                            f"📝 Media MPD: <b>{userMPD}</b>\n"
+                            f"📅 Membro da: <b>{userDays} giorni</b>\n"
+                            f"\n"
+                            f"ℹ️ <b>Info dati</b>\n"
+                            f"- CPM: media caratteri per messaggio\n"
+                            f"- Edit ratio: la percentuale di messaggi editati su quelli inviati\n"
+                            f"- Flood ratio: la percentuale di messaggi consecutivi (uno dopo l'altro) rispetto al totale\n"
+                            f"- MPD: media messaggi al giorno",
+                            parse_mode="HTML", reply_to_message_id=replyId)
+
         else:
             testo, found = helpers.handle_referral(msg)
-            if found:
+            if found and ("Impossibile applicare il referral" not in testo):
                 nome = msg["from"]["first_name"]
                 if "last_name" in msg["from"].keys():
                     nome += " " + msg["from"]["last_name"]

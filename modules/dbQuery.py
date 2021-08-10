@@ -11,6 +11,11 @@ def topMessages(n: int=10):
 
 
 @db_session
+def messagesCount(user):
+    return count(user.messages)
+
+
+@db_session
 def topCharsPerMessage(n: int=10, minMessages: int=30):
     statusFilter = ["left", "kicked", ""]
     data = select((
@@ -79,6 +84,44 @@ def floodRatio(user):
             firstOfGroup = True
         lastId = msgId
     return counter / count(user.messages)
+
+
+@db_session
+def topMessagesPerDay(n: int=10):
+    now = datetime.today().timestamp()
+    statusFilter = ["left", "kicked", ""]
+    data = select((
+                      user,
+                      count(user.messages) / int((now - min(select(x.date for x in user.messages))) / 86400)
+                  ) for user in User if user.lastStatus not in statusFilter
+                  ).order_by(-2)
+    return data.limit(n)
+
+
+@db_session
+def messagesPerDay(user):
+    now = datetime.today().timestamp()
+    daysActive = int((now - min(select(x.date for x in user.messages))) / 86400)
+    return count(user.messages) / daysActive
+
+
+@db_session
+def topMembershipDays(n: int=10):
+    now = datetime.today().timestamp()
+    statusFilter = ["left", "kicked", ""]
+    data = select((
+                      user,
+                      int((now - min(select(x.date for x in user.messages))) / 86400)
+                  ) for user in User if user.lastStatus not in statusFilter
+                  ).order_by(-2)
+    return data.limit(n)
+
+
+@db_session
+def membershipDays(user):
+    now = datetime.today().timestamp()
+    daysActive = int((now - min(select(x.date for x in user.messages))) / 86400)
+    return daysActive
 
 
 @db_session
