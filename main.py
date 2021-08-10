@@ -291,9 +291,12 @@ def reply(msg):
 
         elif text == "/mystats":
             user = User.get(chatId=userId)
-            bot.sendMessage(chatId, "{}, <a href=\"https://t.me/overVoltBot?start=mystats_{}\">"
-                                    "Clicca qui per vedere le tue statistiche</a>"
-                                    "".format(getUserString(user), userId), parse_mode="HTML")
+            sent = bot.sendMessage(chatId, "{}, <a href=\"https://t.me/overVoltBot?start=mystats_{}\">"
+                                           "Clicca qui per vedere le tue statistiche!</a>"
+                                           "".format(getUserString(user), userId), parse_mode="HTML", disable_web_page_preview=True)
+            sleep(5)
+            bot.deleteMessage((chatId, sent["message_id"]))
+
 
         else:
             testo, found = helpers.handle_referral(msg)
